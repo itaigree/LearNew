@@ -2,7 +2,7 @@
 "name": "SmartLearn - פלטפורמת למידה אישית",
 "short_name": "SmartLearn",
 "description": "פלטפורמת למידה מותאמת אישית עם בינה מלאכותית",
-"start_url": "LearNew",
+"start_url": "./",
 "display": "standalone",
 "background_color": "#f8fafc",
 "theme_color": "#0ea5e9",
