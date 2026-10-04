@@ -5,7 +5,7 @@
   "description": "פלטפורמת למידה מותאמת אישית עם בינה מלאכותית",
   "lang": "he",
   "dir": "rtl",
-  "start_url": "./",
+  "start_url": "https://itaigree.github.io/LearNew/",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f8fafc",
