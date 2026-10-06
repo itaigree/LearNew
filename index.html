@@ -88,12 +88,9 @@
                 <button id="back-btn" class="hidden text-sm font-medium text-slate-600 hover:text-brand-600 transition-colors" onclick="app.goBack()">
                     <i class="fa-solid fa-arrow-right ml-1"></i> חזור
                 </button>
-                <div id="user-profile" class="flex items-center gap-2 hidden">
-                    <span class="text-sm text-slate-500" id="user-id-display"></span>
-                    <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-500">
-                        <i class="fa-regular fa-user"></i>
-                    </div>
-                </div>
+                <button onclick="app.openSettingsModal()" class="text-slate-500 hover:text-brand-600 transition-colors p-2" title="הגדרות API">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
             </div>
         </div>
     </header>
@@ -127,16 +124,21 @@
         <div id="view-syllabus" class="hidden-view flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
             <div class="max-w-3xl mx-auto">
                 <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden mb-6">
-                    <div class="p-6 border-b border-slate-100 bg-slate-50">
-                        <div class="flex items-center gap-2 text-sm text-brand-600 font-medium mb-2">
-                            <i class="fa-solid fa-layer-group"></i> סילבוס הקורס
+                    <div class="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-start">
+                        <div>
+                            <div class="flex items-center gap-2 text-sm text-brand-600 font-medium mb-2">
+                                <i class="fa-solid fa-layer-group"></i> סילבוס הקורס
+                            </div>
+                            <h2 id="syllabus-title" class="text-3xl font-bold text-slate-900 mb-2"></h2>
+                            <div class="flex flex-wrap gap-4 text-sm text-slate-500">
+                                <span id="syllabus-level"><i class="fa-solid fa-stairs ml-1"></i> רמה מבוקשת</span>
+                                <span id="syllabus-persona"><i class="fa-solid fa-user-graduate ml-1"></i> סגנון למידה</span>
+                                <span id="syllabus-progress-text"><i class="fa-solid fa-chart-line ml-1"></i> התקדמות</span>
+                            </div>
                         </div>
-                        <h2 id="syllabus-title" class="text-3xl font-bold text-slate-900 mb-2"></h2>
-                        <div class="flex gap-4 text-sm text-slate-500">
-                            <span id="syllabus-level"><i class="fa-solid fa-stairs ml-1"></i> רמה מבוקשת</span>
-                            <span id="syllabus-persona"><i class="fa-solid fa-user-graduate ml-1"></i> סגנון למידה</span>
-                            <span id="syllabus-progress-text"><i class="fa-solid fa-chart-line ml-1"></i> התקדמות</span>
-                        </div>
+                        <button onclick="app.deleteCurrentCourse()" class="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors text-sm" title="מחק קורס">
+                            <i class="fa-regular fa-trash-can"></i>
+                        </button>
                     </div>
                     
                     <div id="lessons-list" class="divide-y divide-slate-100">
@@ -160,7 +162,7 @@
                 <!-- Scrollable Content -->
                 <div class="flex-1 overflow-y-auto p-6 md:p-10 relative" id="lesson-scroll-area">
                     
-                    <div id="lesson-loading" class="absolute inset-0 bg-white flex flex-col items-center justify-center z-10">
+                    <div id="lesson-loading" class="absolute inset-0 bg-white flex flex-col items-center justify-center z-10 hidden">
                         <div class="loader mb-4"></div>
                         <h3 class="text-xl font-bold text-slate-700">הבינה המלאכותית כותבת את השיעור...</h3>
                         <p class="text-slate-500 text-sm mt-2 text-center max-w-sm">מתאים את התוכן לסגנון הלמידה שלך, בונה שאלות בחן ומייצר תזכורות משיעורים קודמים.</p>
@@ -299,43 +301,123 @@
         </div>
     </div>
 
+    <!-- Settings API Key Modal -->
+    <div id="settings-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="settings-modal-content">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-lg text-slate-800">הגדרות חיבור</h3>
+                <button onclick="app.closeSettingsModal()" class="text-slate-400 hover:text-slate-600" id="close-settings-btn">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <form onsubmit="app.saveApiKey(event)" class="p-6">
+                <div class="space-y-4">
+                    <p class="text-sm text-slate-600">
+                        כדי שהאפליקציה תייצר קורסים מותאמים אישית, יש להזין מפתח Google Gemini API. המפתח נשמר במכשיר שלך בלבד!
+                    </p>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">API Key</label>
+                        <input type="password" id="input-api-key" required placeholder="AIzaSy..." class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none">
+                    </div>
+                    <div class="text-xs text-brand-600">
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" class="hover:underline">
+                            <i class="fa-solid fa-external-link-alt ml-1"></i> לחץ כאן כדי להפיק מפתח בחינם (Google AI Studio)
+                        </a>
+                    </div>
+                </div>
+
+                <div class="mt-8 flex justify-end">
+                    <button type="submit" class="px-5 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-sm transition-colors">
+                        שמור מפתח
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Toast Notification -->
     <div id="toast" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium opacity-0 pointer-events-none transition-opacity duration-300 z-50">
         הודעה
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, setDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'smartlearn-default';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            // Mock config for local testing if needed, though canvas handles this.
-        };
-
-        let app_fb, db, auth, userId;
-
-        try {
-            app_fb = initializeApp(firebaseConfig);
-            db = getFirestore(app_fb);
-            auth = getAuth(app_fb);
-        } catch (e) {
-            console.error("Firebase initialization failed", e);
-        }
-
+    <script>
         window.app = {
             state: {
-                view: 'dashboard', // dashboard, syllabus, lesson
+                view: 'dashboard',
                 courses: [],
-                currentCourse: null,
+                currentCourseId: null,
                 currentLessonIndex: null,
-                currentLessonData: null,
                 isGeneratingContent: false,
                 chatHistory: []
             },
             
-            // UI Helpers
+            init: () => {
+                window.app.loadCoursesFromStorage();
+                window.app.renderDashboard();
+            },
+
+            // --- Storage & Sync (No Firebase) ---
+            loadCoursesFromStorage: () => {
+                const stored = localStorage.getItem('smartlearn_courses');
+                if (stored) {
+                    window.app.state.courses = JSON.parse(stored);
+                } else {
+                    window.app.state.courses = [];
+                }
+            },
+            
+            saveCoursesToStorage: () => {
+                localStorage.setItem('smartlearn_courses', JSON.stringify(window.app.state.courses));
+            },
+
+            getCurrentCourse: () => {
+                return window.app.state.courses.find(c => c.id === window.app.state.currentCourseId);
+            },
+
+            // --- API Key Management ---
+            getApiKey: () => {
+                return localStorage.getItem('smartlearn_api_key');
+            },
+
+            openSettingsModal: (forceClose = false) => {
+                const m = document.getElementById('settings-modal');
+                const c = document.getElementById('settings-modal-content');
+                const currentKey = window.app.getApiKey();
+                document.getElementById('input-api-key').value = currentKey || '';
+                
+                // If forced (no key exists), hide the close button
+                if (forceClose) {
+                    document.getElementById('close-settings-btn').classList.add('hidden');
+                } else {
+                    document.getElementById('close-settings-btn').classList.remove('hidden');
+                }
+
+                m.classList.remove('hidden');
+                void m.offsetWidth; // trigger reflow
+                m.classList.remove('opacity-0');
+                c.classList.remove('scale-95');
+            },
+
+            closeSettingsModal: () => {
+                const m = document.getElementById('settings-modal');
+                const c = document.getElementById('settings-modal-content');
+                m.classList.add('opacity-0');
+                c.classList.add('scale-95');
+                setTimeout(() => m.classList.add('hidden'), 300);
+            },
+
+            saveApiKey: (e) => {
+                e.preventDefault();
+                const key = document.getElementById('input-api-key').value.trim();
+                if (key) {
+                    localStorage.setItem('smartlearn_api_key', key);
+                    window.app.showToast('המפתח נשמר בהצלחה!');
+                    window.app.closeSettingsModal();
+                }
+            },
+
+            // --- UI Navigation ---
             showToast: (msg) => {
                 const t = document.getElementById('toast');
                 t.textContent = msg;
@@ -354,7 +436,7 @@
                 const backBtn = document.getElementById('back-btn');
                 if (viewId === 'dashboard') {
                     backBtn.classList.add('hidden');
-                    window.app.loadCourses(); // Refresh courses list
+                    window.app.renderDashboard();
                 } else {
                     backBtn.classList.remove('hidden');
                 }
@@ -363,30 +445,33 @@
             goBack: () => {
                 const s = window.app.state;
                 if (s.view === 'lesson') {
-                    window.app.openCourse(s.currentCourse);
+                    window.app.openCourse(s.currentCourseId);
                 } else if (s.view === 'syllabus') {
                     window.app.navigate('dashboard');
                 }
             },
             
-            // Modal Helpers
+            // --- Modals ---
             openCreateModal: () => {
+                if (!window.app.getApiKey()) {
+                    window.app.openSettingsModal(true);
+                    window.app.showToast('חובה להזין מפתח API כדי ליצור קורסים');
+                    return;
+                }
+
                 const m = document.getElementById('create-modal');
                 const c = document.getElementById('create-modal-content');
                 m.classList.remove('hidden');
-                // trigger reflow
                 void m.offsetWidth;
                 m.classList.remove('opacity-0');
                 c.classList.remove('scale-95');
                 
-                // reset form
                 document.getElementById('create-course-form').reset();
                 document.getElementById('modal-loading').classList.add('hidden');
             },
             
             closeCreateModal: () => {
                 if(window.app.state.isGeneratingContent) return;
-                
                 const m = document.getElementById('create-modal');
                 const c = document.getElementById('create-modal-content');
                 m.classList.add('opacity-0');
@@ -394,9 +479,15 @@
                 setTimeout(() => m.classList.add('hidden'), 300);
             },
 
+            // --- Gemini API Call ---
             callGemini: async (prompt, schema = null, retries = 3) => {
-                const apiKey = ""; // Canvas handles auto-injection
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+                const apiKey = window.app.getApiKey();
+                if (!apiKey) {
+                    window.app.openSettingsModal(true);
+                    throw new Error("API Key is missing");
+                }
+
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
                 
                 const payload = {
                     contents: [{ role: 'user', parts: [{ text: prompt }] }]
@@ -418,6 +509,11 @@
                         });
                         
                         const result = await response.json();
+                        
+                        if (result.error) {
+                            throw new Error(result.error.message);
+                        }
+
                         if (result.candidates && result.candidates.length > 0) {
                             let text = result.candidates[0].content.parts[0].text;
                             return schema ? JSON.parse(text) : text;
@@ -425,19 +521,16 @@
                             throw new Error("No candidates returned from Gemini.");
                         }
                     } catch (e) {
-                        if (i === retries - 1) {
-                            console.error("Gemini API Error after retries:", e);
-                            throw e;
-                        }
-                        // המתנה במקרה של שגיאה לפני הניסיון הבא (Exponential Backoff)
+                        console.error(`Gemini API Error (Attempt ${i+1}):`, e);
+                        if (i === retries - 1) throw e;
                         await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
                     }
                 }
             },
 
+            // --- Course Generation ---
             generateCourse: async (e) => {
                 e.preventDefault();
-                if(!userId) { window.app.showToast('שגיאת התחברות. נסה לרענן.'); return; }
                 
                 const topic = document.getElementById('input-topic').value;
                 const currentLevel = document.getElementById('input-current-level').value;
@@ -454,7 +547,6 @@
 מספר השיעורים המבוקש בקורס: ${numLessons}.
 עליך להחזיר בדיוק ${numLessons} שיעורים, עם כותרת קצרה ותקציר של משפט אחד לכל שיעור.`;
 
-                // הגדרת סכמת JSON מדויקת שמאיצה את התגובה של ה-API
                 const syllabusSchema = {
                     type: "OBJECT",
                     properties: {
@@ -474,58 +566,38 @@
                 try {
                     const syllabusData = await window.app.callGemini(prompt, syllabusSchema);
                     
-                    if(!syllabusData.lessons || syllabusData.lessons.length === 0) throw new Error("Invalid syllabus generated.");
+                    if(!syllabusData.lessons || syllabusData.lessons.length === 0) throw new Error("Invalid syllabus");
 
-                    // Save to Firestore (Rule 1 paths)
-                    const courseData = {
+                    const newCourse = {
+                        id: 'course_' + Date.now(),
                         topic, currentLevel, targetLevel, numLessons, persona,
-                        syllabus: syllabusData.lessons,
-                        progress: 0, // index of currently unlocked lesson
-                        createdAt: serverTimestamp()
+                        syllabus: syllabusData.lessons.map(l => ({ ...l, contentData: null })), // Init empty content
+                        progress: 0,
+                        createdAt: Date.now()
                     };
                     
-                    const docRef = await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'courses'), courseData);
-                    const newCourse = { id: docRef.id, ...courseData };
+                    window.app.state.courses.unshift(newCourse); // Add to top
+                    window.app.saveCoursesToStorage();
                     
                     window.app.closeCreateModal();
                     window.app.showToast('הסילבוס נוצר בהצלחה!');
-                    window.app.openCourse(newCourse);
+                    window.app.openCourse(newCourse.id);
 
                 } catch(error) {
                     console.error("Create course failed", error);
-                    window.app.showToast('אירעה שגיאה ביצירת הקורס. נסה שוב.');
+                    window.app.showToast('אירעה שגיאה. בדוק את מפתח ה-API שלך ונסה שוב.');
                     document.getElementById('modal-loading').classList.add('hidden');
                 } finally {
                     window.app.state.isGeneratingContent = false;
                 }
             },
 
-            loadCourses: async () => {
-                if(!userId) return;
-                
-                const coursesRef = collection(db, 'artifacts', appId, 'users', userId, 'courses');
-                const q = query(coursesRef, orderBy('createdAt', 'desc'));
-                
-                try {
-                    const querySnapshot = await getDocs(q);
-                    const courses = [];
-                    querySnapshot.forEach((doc) => {
-                        courses.push({ id: doc.id, ...doc.data() });
-                    });
-                    
-                    window.app.state.courses = courses;
-                    window.app.renderDashboard();
-                } catch(e) {
-                    console.error("Error loading courses", e);
-                }
-            },
-
+            // --- Dashboard & Navigation ---
             renderDashboard: () => {
                 const grid = document.getElementById('courses-grid');
                 const noMsg = document.getElementById('no-courses-msg');
                 const courses = window.app.state.courses;
                 
-                // Clear grid except for the no-msg element
                 Array.from(grid.children).forEach(c => { if(c.id !== 'no-courses-msg') c.remove(); });
                 
                 if (courses.length === 0) {
@@ -539,7 +611,7 @@
                     const pct = Math.round((course.progress / course.numLessons) * 100);
                     const card = document.createElement('div');
                     card.className = 'bg-white rounded-xl shadow-sm border border-slate-100 p-5 hover:shadow-md transition-shadow cursor-pointer flex flex-col';
-                    card.onclick = () => window.app.openCourse(course);
+                    card.onclick = () => window.app.openCourse(course.id);
                     
                     card.innerHTML = `
                         <div class="flex items-start justify-between mb-3">
@@ -564,8 +636,19 @@
                 });
             },
 
-            openCourse: (course) => {
-                window.app.state.currentCourse = course;
+            deleteCurrentCourse: () => {
+                if (confirm('האם אתה בטוח שברצונך למחוק קורס זה? הפעולה בלתי הפיכה.')) {
+                    window.app.state.courses = window.app.state.courses.filter(c => c.id !== window.app.state.currentCourseId);
+                    window.app.saveCoursesToStorage();
+                    window.app.navigate('dashboard');
+                    window.app.showToast('הקורס נמחק.');
+                }
+            },
+
+            openCourse: (courseId) => {
+                window.app.state.currentCourseId = courseId;
+                const course = window.app.getCurrentCourse();
+                if (!course) return;
                 
                 document.getElementById('syllabus-title').textContent = course.topic;
                 document.getElementById('syllabus-level').innerHTML = `<i class="fa-solid fa-stairs ml-1"></i> רמה מבוקשת: <b>${course.targetLevel}</b>`;
@@ -597,7 +680,6 @@
                     const el = document.createElement('div');
                     el.className = `p-5 flex items-start gap-4 transition-colors ${statusClasses}`;
                     
-                    // Only attach click handler if unlocked
                     if (!isLocked) {
                         el.onclick = () => window.app.startLesson(index);
                     }
@@ -618,18 +700,16 @@
                 window.app.navigate('syllabus');
             },
 
+            // --- Lesson Handling ---
             startLesson: async (lessonIndex) => {
-                const course = window.app.state.currentCourse;
+                const course = window.app.getCurrentCourse();
                 window.app.state.currentLessonIndex = lessonIndex;
                 
-                // Set UI Basics
                 document.getElementById('lesson-current-title').textContent = `שיעור ${lessonIndex + 1}: ${course.syllabus[lessonIndex].title}`;
                 document.getElementById('lesson-counter').textContent = `שיעור ${lessonIndex + 1} מתוך ${course.numLessons}`;
                 document.getElementById('lesson-content').innerHTML = '';
                 document.getElementById('quiz-section').classList.add('hidden');
-                document.getElementById('lesson-loading').classList.remove('hidden');
                 
-                // Clear chat
                 window.app.state.chatHistory = [];
                 document.getElementById('chat-messages').innerHTML = `
                     <div class="flex items-start gap-2">
@@ -644,27 +724,18 @@
                 
                 window.app.navigate('lesson');
                 
-                // Check if lesson exists in DB
-                const lessonDocRef = doc(db, 'artifacts', appId, 'users', userId, 'courses', course.id, 'lessons', `lesson_${lessonIndex}`);
-                
-                try {
-                    const docSnap = await getDoc(lessonDocRef);
-                    if (docSnap.exists()) {
-                        // Lesson already generated, load from DB
-                        window.app.renderLesson(docSnap.data());
-                    } else {
-                        // Generate new lesson via Gemini
-                        await window.app.generateLesson(lessonIndex, course);
-                    }
-                } catch(e) {
-                    console.error("Error loading lesson", e);
-                    window.app.showToast("שגיאה בטעינת השיעור");
+                // Check if lesson data already exists in LocalStorage
+                if (course.syllabus[lessonIndex].contentData) {
+                    window.app.renderLesson(course.syllabus[lessonIndex].contentData);
+                } else {
+                    document.getElementById('lesson-loading').classList.remove('hidden');
+                    await window.app.generateLesson(lessonIndex, course);
                 }
             },
 
             generateLesson: async (lessonIndex, course) => {
                 const currentLesson = course.syllabus[lessonIndex];
-                const fullSyllabusJson = JSON.stringify(course.syllabus);
+                const fullSyllabusJson = JSON.stringify(course.syllabus.map(s => ({title: s.title, summary: s.summary})));
                 
                 const prompt = `כתוב את שיעור מספר ${lessonIndex + 1} מתוך ${course.numLessons} בקורס בנושא '${course.topic}'.
 כותרת השיעור הנוכחי: '${currentLesson.title}'.
@@ -673,10 +744,10 @@
 
 הנחיות חובה:
 1. ${lessonIndex > 0 ? "התחל בפסקה קצרה של חזרה על מושג משיעורים קודמים." : "התחל ביצירת סקרנות ועניין בנושא."}
-2. כתוב שיעור ארוך, מקיף ומפורט מאוד (באורך של כ-10 דקות קריאה, לפחות 1500 עד 2000 מילים). זהו שיעור מרכזי ויש להעמיק בו מאוד.
-3. תן הרחבות, רקע היסטורי או תיאורטי, מקרי בוחן (Case Studies), המון דוגמאות, וחלק את הטקסט באופן הגיוני עם הרבה תתי-כותרות. אל תחסוך במילים.
-4. השתמש בתגיות HTML בסיסיות (h2, h3, p, ul, li, b) לעיצוב הטקסט במפתח 'content'.
-5. חבר בוחן קצר של 3 שאלות אמריקאיות כדי לבדוק הבנה אמיתית של מה שנלמד הרגע.`;
+2. כתוב שיעור ארוך, מקיף ומפורט מאוד (באורך של כ-10 דקות קריאה, לפחות 1500 מילים).
+3. תן הרחבות, מקרי בוחן, דוגמאות, וחלק את הטקסט עם תתי-כותרות.
+4. השתמש בתגיות HTML בסיסיות (h2, h3, p, ul, li, b) לעיצוב הטקסט ב-content.
+5. חבר בוחן קצר של 3 שאלות אמריקאיות כדי לבדוק הבנה.`;
 
                 const lessonSchema = {
                     type: "OBJECT",
@@ -701,12 +772,11 @@
 
                 try {
                     const lessonData = await window.app.callGemini(prompt, lessonSchema);
-                    
-                    if(!lessonData.content || !lessonData.quiz) throw new Error("Invalid lesson format from API.");
+                    if(!lessonData.content || !lessonData.quiz) throw new Error("Invalid format");
 
-                    // Save to Firestore
-                    const lessonDocRef = doc(db, 'artifacts', appId, 'users', userId, 'courses', course.id, 'lessons', `lesson_${lessonIndex}`);
-                    await setDoc(lessonDocRef, lessonData);
+                    // Save inside the course object in LocalStorage
+                    course.syllabus[lessonIndex].contentData = lessonData;
+                    window.app.saveCoursesToStorage();
                     
                     window.app.renderLesson(lessonData);
                     
@@ -715,21 +785,18 @@
                     document.getElementById('lesson-loading').innerHTML = `
                         <div class="text-red-500 text-4xl mb-4"><i class="fa-solid fa-circle-exclamation"></i></div>
                         <h3 class="text-xl font-bold">אירעה שגיאה ביצירת השיעור</h3>
+                        <p class="text-sm mt-2">${error.message}</p>
                         <button onclick="app.startLesson(${lessonIndex})" class="mt-4 bg-brand-600 text-white px-4 py-2 rounded">נסה שוב</button>
                     `;
                 }
             },
 
             renderLesson: (lessonData) => {
-                window.app.state.currentLessonData = lessonData;
+                document.getElementById('lesson-loading').classList.add('hidden');
                 
                 const contentDiv = document.getElementById('lesson-content');
                 contentDiv.innerHTML = lessonData.content;
                 
-                // Hide loader
-                document.getElementById('lesson-loading').classList.add('hidden');
-                
-                // Render Quiz
                 const quizContainer = document.getElementById('quiz-container');
                 quizContainer.innerHTML = '';
                 
@@ -759,16 +826,15 @@
                 
                 document.getElementById('quiz-section').classList.remove('hidden');
                 
-                // Reset Quiz UI
                 document.getElementById('check-quiz-btn').classList.remove('hidden');
                 document.getElementById('next-lesson-btn').classList.add('hidden');
                 
-                // Scroll to top
                 document.getElementById('lesson-scroll-area').scrollTop = 0;
             },
 
             checkQuiz: () => {
-                const lessonData = window.app.state.currentLessonData;
+                const course = window.app.getCurrentCourse();
+                const lessonData = course.syllabus[window.app.state.currentLessonIndex].contentData;
                 let allCorrect = true;
                 
                 lessonData.quiz.forEach((q, qIndex) => {
@@ -776,7 +842,6 @@
                     const feedback = document.getElementById(`feedback_${qIndex}`);
                     feedback.classList.remove('hidden', 'text-green-600', 'text-red-500');
                     
-                    // Reset styling
                     document.querySelectorAll(`.quiz-option-${qIndex}`).forEach(el => {
                         el.classList.remove('border-red-400', 'bg-red-50', 'border-green-400', 'bg-green-50');
                     });
@@ -808,20 +873,15 @@
                 }
             },
 
-            handleQuizPassed: async () => {
+            handleQuizPassed: () => {
                 document.getElementById('check-quiz-btn').classList.add('hidden');
                 
-                const course = window.app.state.currentCourse;
+                const course = window.app.getCurrentCourse();
                 const cIndex = window.app.state.currentLessonIndex;
                 
-                // Only update progress if this was the highest lesson reached
                 if (cIndex === course.progress) {
-                    const newProgress = course.progress + 1;
-                    course.progress = newProgress;
-                    
-                    // Update Firebase
-                    const courseRef = doc(db, 'artifacts', appId, 'users', userId, 'courses', course.id);
-                    await updateDoc(courseRef, { progress: newProgress });
+                    course.progress += 1;
+                    window.app.saveCoursesToStorage();
                 }
                 
                 if (cIndex + 1 < course.numLessons) {
@@ -837,15 +897,16 @@
             },
 
             goToNextLesson: () => {
-                const course = window.app.state.currentCourse;
+                const course = window.app.getCurrentCourse();
                 const cIndex = window.app.state.currentLessonIndex;
                 if (cIndex + 1 < course.numLessons) {
                     window.app.startLesson(cIndex + 1);
                 } else {
-                    window.app.openCourse(course); // Go back to syllabus
+                    window.app.openCourse(course.id);
                 }
             },
 
+            // --- Chatbot ---
             handleChatSubmit: async (e) => {
                 e.preventDefault();
                 const inputEl = document.getElementById('chat-input');
@@ -855,22 +916,22 @@
                 inputEl.value = '';
                 window.app.appendChatMessage('user', userQuery);
                 
-                const lessonContent = window.app.state.currentLessonData?.content || "אין עדיין תוכן לשיעור.";
+                const course = window.app.getCurrentCourse();
+                const lessonData = course.syllabus[window.app.state.currentLessonIndex].contentData;
+                const lessonContent = lessonData ? lessonData.content : "";
                 
                 const prompt = `אתה מורה פרטי. הלומד שואל שאלה בהתבסס על השיעור שהוא קורא עכשיו.
-טקסט השיעור שהוא קורא:
+טקסט השיעור:
 """
-${lessonContent.substring(0, 3000)} // Limiting to prevent massive prompts
+${lessonContent.substring(0, 3000)}
 """
 שאלת המשתמש: "${userQuery}"
 
 הנחיות:
-1. ענה בעברית בלבד.
-2. ענה בקצרה, בגובה העיניים ובצורה מעודדת.
-3. השתמש במידע מהשיעור כדי לענות. אם השאלה חורגת לחלוטין מנושא השיעור, ענה בעדינות שכרגע מתמקדים בטקסט הזה אך תן כיוון כללי קצר.`;
+1. ענה בעברית בלבד ובקצרה.
+2. השתמש במידע מהשיעור.`;
 
                 try {
-                    // Show typing indicator
                     const msgContainer = document.getElementById('chat-messages');
                     const typingId = 'typing-' + Date.now();
                     msgContainer.insertAdjacentHTML('beforeend', `
@@ -887,20 +948,18 @@ ${lessonContent.substring(0, 3000)} // Limiting to prevent massive prompts
                     `);
                     msgContainer.scrollTop = msgContainer.scrollHeight;
 
-                    // שליחה רגילה לצ'אט ללא סכמת JSON
                     const responseText = await window.app.callGemini(prompt, null);
                     
                     document.getElementById(typingId).remove();
                     window.app.appendChatMessage('bot', responseText);
                 } catch(error) {
                     console.error("Chat error", error);
-                    window.app.appendChatMessage('bot', "מצטער, הייתה לי שגיאה בתקשורת. אפשר לשאול שוב?");
+                    window.app.appendChatMessage('bot', "מצטער, הייתה לי שגיאה בתקשורת. ודא שמפתח ה-API תקין ונסה שוב.");
                 }
             },
 
             appendChatMessage: (role, text) => {
                 const msgContainer = document.getElementById('chat-messages');
-                
                 let html = '';
                 if (role === 'user') {
                     html = `
@@ -925,31 +984,14 @@ ${lessonContent.substring(0, 3000)} // Limiting to prevent massive prompts
                         </div>
                     `;
                 }
-                
                 msgContainer.insertAdjacentHTML('beforeend', html);
                 msgContainer.scrollTop = msgContainer.scrollHeight;
             }
         };
 
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                userId = user.uid;
-                document.getElementById('user-profile').classList.remove('hidden');
-                document.getElementById('user-id-display').textContent = userId.substring(0,6) + '...';
-                window.app.loadCourses();
-            } else {
-                try {
-                    const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                    if (token) {
-                        await signInWithCustomToken(auth, token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                } catch(e) {
-                    console.error("Auth error", e);
-                    window.app.showToast('שגיאת התחברות למערכת.');
-                }
-            }
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            window.app.init();
         });
     </script>
 
