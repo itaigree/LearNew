@@ -489,7 +489,7 @@
 
                 // Models are tried in order. If one has been retired (HTTP 404), the next one is used.
                 // gemini-1.5-flash was shut down by Google, which caused the "key or network" error.
-                const models = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-flash-latest'];
+                const models = ['gemini-3.8-flash', 'gemini-3.5-flash'];
 
                 const payload = {
                     contents: [{ role: 'user', parts: [{ text: prompt }] }]
