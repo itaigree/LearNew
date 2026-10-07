@@ -487,7 +487,8 @@
                     throw new Error("API Key is missing");
                 }
 
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+                // CHANGED: Using gemini-1.5-flash which is stable and widely available
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
                 
                 const payload = {
                     contents: [{ role: 'user', parts: [{ text: prompt }] }]
@@ -585,7 +586,7 @@
 
                 } catch(error) {
                     console.error("Create course failed", error);
-                    window.app.showToast('אירעה שגיאה. בדוק את מפתח ה-API שלך ונסה שוב.');
+                    window.app.showToast('אירעה שגיאה. ייתכן שהמפתח לא תקין או שיש בעיית רשת. נסה שוב.');
                     document.getElementById('modal-loading').classList.add('hidden');
                 } finally {
                     window.app.state.isGeneratingContent = false;
