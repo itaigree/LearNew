@@ -487,9 +487,10 @@
                     throw new Error("API Key is missing");
                 }
 
-                // CHANGED: Using gemini-1.5-flash which is stable and widely available
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-                
+                // Models are tried in order. If one has been retired (HTTP 404), the next one is used.
+                // gemini-1.5-flash was shut down by Google, which caused the "key or network" error.
+                const models = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-flash-latest'];
+
                 const payload = {
                     contents: [{ role: 'user', parts: [{ text: prompt }] }]
                 };
@@ -501,32 +502,42 @@
                     };
                 }
 
-                for (let i = 0; i < retries; i++) {
-                    try {
-                        const response = await fetch(apiUrl, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
-                        
-                        const result = await response.json();
-                        
-                        if (result.error) {
-                            throw new Error(result.error.message);
-                        }
+                let lastError = new Error("Unknown error");
+                for (const model of models) {
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                    for (let i = 0; i < retries; i++) {
+                        try {
+                            const response = await fetch(apiUrl, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            
+                            const result = await response.json();
+                            
+                            if (result.error) {
+                                const apiErr = new Error(result.error.message);
+                                apiErr.status = result.error.code;
+                                throw apiErr;
+                            }
 
-                        if (result.candidates && result.candidates.length > 0) {
-                            let text = result.candidates[0].content.parts[0].text;
-                            return schema ? JSON.parse(text) : text;
-                        } else {
-                            throw new Error("No candidates returned from Gemini.");
+                            if (result.candidates && result.candidates.length > 0) {
+                                const parts = result.candidates[0].content.parts || [];
+                                const text = parts.filter(p => !p.thought).map(p => p.text || '').join('');
+                                return schema ? JSON.parse(text) : text;
+                            } else {
+                                throw new Error("No candidates returned from Gemini.");
+                            }
+                        } catch (e) {
+                            lastError = e;
+                            console.error(`Gemini API Error (${model}, attempt ${i+1}):`, e);
+                            if (e.status === 404) break;                                   // model retired -> try next model
+                            if ([400, 401, 403].includes(e.status)) throw e;               // bad key / bad request: retrying won't help
+                            if (i < retries - 1) await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
                         }
-                    } catch (e) {
-                        console.error(`Gemini API Error (Attempt ${i+1}):`, e);
-                        if (i === retries - 1) throw e;
-                        await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
                     }
                 }
+                throw lastError;
             },
 
             // --- Course Generation ---
@@ -586,7 +597,7 @@
 
                 } catch(error) {
                     console.error("Create course failed", error);
-                    window.app.showToast('אירעה שגיאה. ייתכן שהמפתח לא תקין או שיש בעיית רשת. נסה שוב.');
+                    window.app.showToast('שגיאה: ' + String(error.message).slice(0, 140));
                     document.getElementById('modal-loading').classList.add('hidden');
                 } finally {
                     window.app.state.isGeneratingContent = false;
@@ -955,7 +966,7 @@ ${lessonContent.substring(0, 3000)}
                     window.app.appendChatMessage('bot', responseText);
                 } catch(error) {
                     console.error("Chat error", error);
-                    window.app.appendChatMessage('bot', "מצטער, הייתה לי שגיאה בתקשורת. ודא שמפתח ה-API תקין ונסה שוב.");
+                    window.app.appendChatMessage('bot', "מצטער, הייתה לי שגיאה בתקשורת: " + String(error.message).slice(0, 140));
                 }
             },
 
