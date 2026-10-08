@@ -81,7 +81,7 @@
                 <div class="w-8 h-8 bg-brand-600 text-white rounded-lg flex items-center justify-center font-bold text-xl">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v9</span></h1>
+                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v10</span></h1>
             </div>
             
             <div id="nav-actions" class="flex items-center gap-4">
@@ -514,7 +514,8 @@
                     throw new Error("API Key is missing");
                 }
 
-                const apiUrl = `[https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=$](https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=$){apiKey}`;
+                // תיקון הקריסה (Rest API) - מקפים במקום נקודות
+                const apiUrl = `[https://generativelanguage.googleapis.com/v1beta/models/gemini-3-8-flash:generateContent?key=$](https://generativelanguage.googleapis.com/v1beta/models/gemini-3-8-flash:generateContent?key=$){apiKey}`;
                 
                 const payload = {
                     contents: [{ role: 'user', parts: [{ text: prompt }] }]
@@ -535,7 +536,14 @@
                             body: JSON.stringify(payload)
                         });
                         
-                        const result = await response.json();
+                        // קריאת הטקסט לפני JSON למקרה שגוגל החזירו שגיאת HTML
+                        const textData = await response.text();
+                        
+                        if (textData.trim().startsWith('<')) {
+                            throw new Error(`השרת החזיר דף אינטרנט במקום נתונים. ודא שהמודל נתמך במפתח שלך.`);
+                        }
+
+                        const result = JSON.parse(textData);
                         
                         if (result.error) {
                             throw new Error(result.error.message);
