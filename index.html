@@ -81,8 +81,7 @@
                 <div class="w-8 h-8 bg-brand-600 text-white rounded-lg flex items-center justify-center font-bold text-xl">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <!-- הוספנו תגית V6 כדי שתדע שהקוד מעודכן! -->
-                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal ml-1">v6</span></h1>
+                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v9</span></h1>
             </div>
             
             <div id="nav-actions" class="flex items-center gap-4">
@@ -164,9 +163,11 @@
                 <div class="flex-1 overflow-y-auto p-6 md:p-10 relative" id="lesson-scroll-area">
                     
                     <div id="lesson-loading" class="absolute inset-0 bg-white flex flex-col items-center justify-center z-10 hidden">
-                        <div class="loader mb-4"></div>
-                        <h3 class="text-xl font-bold text-slate-700">הבינה המלאכותית כותבת את השיעור...</h3>
-                        <p class="text-slate-500 text-sm mt-2 text-center max-w-sm">מתאים את התוכן לסגנון הלמידה שלך, בונה שאלות בחן ומייצר תזכורות משיעורים קודמים.</p>
+                        <div id="lesson-loading-spinner" class="loader mb-4"></div>
+                        <div id="lesson-loading-icon" class="text-red-500 text-4xl mb-4 hidden"><i class="fa-solid fa-circle-exclamation"></i></div>
+                        <h3 id="lesson-loading-title" class="text-xl font-bold text-slate-700">הבינה המלאכותית כותבת את השיעור...</h3>
+                        <p id="lesson-loading-text" class="text-slate-500 text-sm mt-2 text-center max-w-sm">מתאים את התוכן לסגנון הלמידה שלך, בונה שאלות בחן ומייצר תזכורות משיעורים קודמים.</p>
+                        <button id="lesson-retry-btn" onclick="app.startLesson(window.app.state.currentLessonIndex)" class="hidden mt-4 bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-lg shadow-sm transition-colors text-sm font-medium">נסה שוב</button>
                     </div>
 
                     <div id="lesson-content" class="lesson-content max-w-3xl mx-auto">
@@ -234,7 +235,7 @@
 
     <!-- Create Course Modal -->
     <div id="create-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden transform scale-95 transition-transform duration-300 relative" id="create-modal-content">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="create-modal-content">
             <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                 <h3 class="font-bold text-lg text-slate-800">צור קורס חדש</h3>
                 <button onclick="app.closeCreateModal()" class="text-slate-400 hover:text-slate-600">
@@ -295,7 +296,11 @@
             
             <!-- Loading State inside Modal -->
             <div id="modal-loading" class="hidden absolute inset-0 bg-white/95 z-10 flex flex-col items-center justify-center p-6">
-                <!-- התוכן פה מתחלף דינמית דרך JS, כולל הצגת שגיאות מפורטות במקרה של כישלון -->
+                <div id="modal-spinner" class="loader mb-4"></div>
+                <div id="modal-error-icon" class="text-red-500 text-4xl mb-4 hidden"><i class="fa-solid fa-circle-exclamation"></i></div>
+                <h4 id="modal-title" class="font-bold text-slate-800">הבינה המלאכותית מתכננת את הקורס...</h4>
+                <p id="modal-subtitle" class="text-sm text-slate-500 text-center mt-2">אנו בונים סילבוס מותאם אישית לפי הדרישות שלך. זה ייקח מספר שניות.</p>
+                <button id="modal-close-btn" onclick="app.resetAndCloseCreateModal()" class="hidden mt-6 bg-slate-200 hover:bg-slate-300 text-slate-700 px-5 py-2 rounded-lg font-medium transition-colors">סגור וחזור</button>
             </div>
         </div>
     </div>
@@ -356,7 +361,7 @@
                 window.app.renderDashboard();
             },
 
-            // --- Storage & Sync ---
+            // --- Storage & Sync (No Firebase) ---
             loadCoursesFromStorage: () => {
                 const stored = localStorage.getItem('smartlearn_courses');
                 if (stored) {
@@ -464,7 +469,14 @@
                 m.classList.remove('opacity-0');
                 c.classList.remove('scale-95');
                 
+                // Reset loading state if left over
                 document.getElementById('modal-loading').classList.add('hidden');
+                document.getElementById('modal-spinner').classList.remove('hidden');
+                document.getElementById('modal-error-icon').classList.add('hidden');
+                document.getElementById('modal-title').textContent = "הבינה המלאכותית מתכננת את הקורס...";
+                document.getElementById('modal-subtitle').textContent = "אנו בונים סילבוס מותאם אישית לפי הדרישות שלך. זה ייקח מספר שניות.";
+                document.getElementById('modal-title').classList.remove('text-red-600');
+                document.getElementById('modal-close-btn').classList.add('hidden');
             },
             
             closeCreateModal: () => {
@@ -476,16 +488,33 @@
                 setTimeout(() => m.classList.add('hidden'), 300);
             },
 
+            resetAndCloseCreateModal: () => {
+                window.app.state.isGeneratingContent = false;
+                window.app.closeCreateModal();
+            },
+
+            cleanJsonResponse: (text) => {
+                let cleaned = text.trim();
+                if (cleaned.startsWith('```json')) {
+                    cleaned = cleaned.substring(7);
+                } else if (cleaned.startsWith('```')) {
+                    cleaned = cleaned.substring(3);
+                }
+                if (cleaned.endsWith('```')) {
+                    cleaned = cleaned.substring(0, cleaned.length - 3);
+                }
+                return cleaned.trim();
+            },
+
             // --- Gemini API Call ---
             callGemini: async (prompt, schema = null, retries = 3) => {
                 const apiKey = window.app.getApiKey();
                 if (!apiKey) {
                     window.app.openSettingsModal(true);
-                    throw new Error("מפתח API חסר. אנא הזן מפתח חוקי.");
+                    throw new Error("API Key is missing");
                 }
 
-                // חזרה למודל היציב ביותר 1.5-flash שלא דורש הרשאות מיוחדות
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                const apiUrl = `[https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=$](https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=$){apiKey}`;
                 
                 const payload = {
                     contents: [{ role: 'user', parts: [{ text: prompt }] }]
@@ -509,30 +538,18 @@
                         const result = await response.json();
                         
                         if (result.error) {
-                            throw new Error(`שגיאת שרת: ${result.error.message}`);
+                            throw new Error(result.error.message);
                         }
 
                         if (result.candidates && result.candidates.length > 0) {
                             let text = result.candidates[0].content.parts[0].text;
-                            
                             if (schema) {
-                                // הגנה חכמה מול באגים של JSON
-                                let cleanText = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-                                const firstBrace = cleanText.indexOf('{');
-                                const lastBrace = cleanText.lastIndexOf('}');
-                                if (firstBrace !== -1 && lastBrace !== -1) {
-                                    cleanText = cleanText.substring(firstBrace, lastBrace + 1);
-                                }
-                                
-                                try {
-                                    return JSON.parse(cleanText);
-                                } catch (parseError) {
-                                    throw new Error("המידע שהתקבל מגוגל אינו בפורמט תקין.");
-                                }
+                                text = window.app.cleanJsonResponse(text);
+                                return JSON.parse(text);
                             }
                             return text;
                         } else {
-                            throw new Error("גוגל לא החזירה טקסט בתשובה.");
+                            throw new Error("No candidates returned from Gemini.");
                         }
                     } catch (e) {
                         console.error(`Gemini API Error (Attempt ${i+1}):`, e);
@@ -549,18 +566,17 @@
                 const topic = document.getElementById('input-topic').value;
                 const currentLevel = document.getElementById('input-current-level').value;
                 const targetLevel = document.getElementById('input-target-level').value;
-                const numLessons = parseInt(document.getElementById('input-lessons').value) || 5;
+                const numLessons = parseInt(document.getElementById('input-lessons').value);
                 const persona = document.getElementById('input-persona').value;
                 
-                const loadingEl = document.getElementById('modal-loading');
+                document.getElementById('modal-loading').classList.remove('hidden');
+                document.getElementById('modal-spinner').classList.remove('hidden');
+                document.getElementById('modal-error-icon').classList.add('hidden');
+                document.getElementById('modal-title').textContent = "הבינה המלאכותית מתכננת את הקורס...";
+                document.getElementById('modal-subtitle').textContent = "אנו בונים סילבוס מותאם אישית לפי הדרישות שלך. זה ייקח מספר שניות.";
+                document.getElementById('modal-title').classList.remove('text-red-600');
+                document.getElementById('modal-close-btn').classList.add('hidden');
                 
-                // אתחול מסך הטעינה התקין
-                loadingEl.innerHTML = `
-                    <div class="loader mb-4"></div>
-                    <h4 class="font-bold text-slate-800">הבינה המלאכותית מתכננת את הקורס...</h4>
-                    <p class="text-sm text-slate-500 text-center mt-2">אנו בונים סילבוס מותאם אישית לפי הדרישות שלך. זה ייקח מספר שניות.</p>
-                `;
-                loadingEl.classList.remove('hidden');
                 window.app.state.isGeneratingContent = true;
 
                 const prompt = `אתה מומחה בבניית תוכניות לימוד. צור סילבוס לקורס בנושא '${topic}'.
@@ -588,14 +604,12 @@
                 try {
                     const syllabusData = await window.app.callGemini(prompt, syllabusSchema);
                     
-                    if(!syllabusData || !syllabusData.lessons || !Array.isArray(syllabusData.lessons) || syllabusData.lessons.length === 0) {
-                        throw new Error("הבינה המלאכותית לא החזירה סילבוס תקין. נסה שוב.");
-                    }
+                    if(!syllabusData.lessons || syllabusData.lessons.length === 0) throw new Error("Invalid syllabus");
 
                     const newCourse = {
                         id: 'course_' + Date.now(),
                         topic, currentLevel, targetLevel, numLessons, persona,
-                        syllabus: syllabusData.lessons.map(l => ({ ...l, contentData: null })),
+                        syllabus: syllabusData.lessons.map(l => ({ ...l, contentData: null })), 
                         progress: 0,
                         createdAt: Date.now()
                     };
@@ -603,8 +617,9 @@
                     window.app.state.courses.unshift(newCourse);
                     window.app.saveCoursesToStorage();
                     
-                    window.app.state.isGeneratingContent = false;
+                    // Success! Clear the form and close.
                     document.getElementById('create-course-form').reset();
+                    window.app.state.isGeneratingContent = false;
                     window.app.closeCreateModal();
                     
                     window.app.showToast('הסילבוס נוצר בהצלחה!');
@@ -614,13 +629,13 @@
                     console.error("Create course failed", error);
                     window.app.state.isGeneratingContent = false;
                     
-                    // כאן הקסם: במקום להיתקע, המסך מציג לך את השגיאה המדויקת ויאפשר לחזור לטופס
-                    loadingEl.innerHTML = `
-                        <div class="text-red-500 text-5xl mb-4"><i class="fa-solid fa-circle-exclamation"></i></div>
-                        <h3 class="text-xl font-bold text-slate-800">שגיאה ביצירת הקורס</h3>
-                        <p class="text-sm mt-2 text-center text-slate-600 max-w-xs font-medium">${error.message}</p>
-                        <button type="button" onclick="document.getElementById('modal-loading').classList.add('hidden')" class="mt-6 bg-slate-200 hover:bg-slate-300 text-slate-800 px-5 py-2 rounded-lg font-medium transition-colors">חזור לטופס ונסה שוב</button>
-                    `;
+                    // Show error inside modal so data is preserved
+                    document.getElementById('modal-spinner').classList.add('hidden');
+                    document.getElementById('modal-error-icon').classList.remove('hidden');
+                    document.getElementById('modal-title').textContent = "שגיאת תקשורת עם Gemini";
+                    document.getElementById('modal-title').classList.add('text-red-600');
+                    document.getElementById('modal-subtitle').textContent = `פרטי השגיאה: ${error.message}. נסה שוב.`;
+                    document.getElementById('modal-close-btn').classList.remove('hidden');
                 }
             },
 
@@ -756,16 +771,18 @@
                 
                 window.app.navigate('lesson');
                 
+                // Reset loading UI
+                document.getElementById('lesson-loading').classList.remove('hidden');
+                document.getElementById('lesson-loading-spinner').classList.remove('hidden');
+                document.getElementById('lesson-loading-icon').classList.add('hidden');
+                document.getElementById('lesson-loading-title').textContent = "הבינה המלאכותית כותבת את השיעור...";
+                document.getElementById('lesson-loading-title').classList.remove('text-red-600');
+                document.getElementById('lesson-loading-text').textContent = "מתאים את התוכן לסגנון הלמידה שלך, בונה שאלות בחן ומייצר תזכורות משיעורים קודמים.";
+                document.getElementById('lesson-retry-btn').classList.add('hidden');
+
                 if (course.syllabus[lessonIndex].contentData) {
                     window.app.renderLesson(course.syllabus[lessonIndex].contentData);
                 } else {
-                    document.getElementById('lesson-loading').classList.remove('hidden');
-                    // Reset Error Message if existed
-                    document.getElementById('lesson-loading').innerHTML = `
-                        <div class="loader mb-4"></div>
-                        <h3 class="text-xl font-bold text-slate-700">הבינה המלאכותית כותבת את השיעור...</h3>
-                        <p class="text-slate-500 text-sm mt-2 text-center max-w-sm">מתאים את התוכן לסגנון הלמידה שלך, בונה שאלות בחן ומייצר תזכורות משיעורים קודמים.</p>
-                    `;
                     await window.app.generateLesson(lessonIndex, course);
                 }
             },
@@ -809,21 +826,20 @@
 
                 try {
                     const lessonData = await window.app.callGemini(prompt, lessonSchema);
-                    if(!lessonData.content || !lessonData.quiz) throw new Error("מבנה נתונים לא תקין");
+                    if(!lessonData.content || !lessonData.quiz) throw new Error("Invalid format");
 
                     course.syllabus[lessonIndex].contentData = lessonData;
                     window.app.saveCoursesToStorage();
-                    
                     window.app.renderLesson(lessonData);
                     
                 } catch(error) {
                     console.error("Lesson generation failed", error);
-                    document.getElementById('lesson-loading').innerHTML = `
-                        <div class="text-red-500 text-5xl mb-4"><i class="fa-solid fa-circle-exclamation"></i></div>
-                        <h3 class="text-xl font-bold">אירעה שגיאה ביצירת השיעור</h3>
-                        <p class="text-sm mt-2 font-medium">${error.message}</p>
-                        <button onclick="app.startLesson(${lessonIndex})" class="mt-6 bg-brand-600 hover:bg-brand-700 text-white px-5 py-2 rounded-lg transition-colors">נסה שוב</button>
-                    `;
+                    document.getElementById('lesson-loading-spinner').classList.add('hidden');
+                    document.getElementById('lesson-loading-icon').classList.remove('hidden');
+                    document.getElementById('lesson-loading-title').textContent = "אירעה שגיאה ביצירת השיעור";
+                    document.getElementById('lesson-loading-title').classList.add('text-red-600');
+                    document.getElementById('lesson-loading-text').textContent = `פרטים: ${error.message}`;
+                    document.getElementById('lesson-retry-btn').classList.remove('hidden');
                 }
             },
 
