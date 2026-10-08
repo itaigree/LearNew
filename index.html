@@ -81,7 +81,8 @@
                 <div class="w-8 h-8 bg-brand-600 text-white rounded-lg flex items-center justify-center font-bold text-xl">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span></h1>
+                <!-- הוספנו תגית V6 כדי שתדע שהקוד מעודכן! -->
+                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal ml-1">v6</span></h1>
             </div>
             
             <div id="nav-actions" class="flex items-center gap-4">
@@ -233,7 +234,7 @@
 
     <!-- Create Course Modal -->
     <div id="create-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="create-modal-content">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden transform scale-95 transition-transform duration-300 relative" id="create-modal-content">
             <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                 <h3 class="font-bold text-lg text-slate-800">צור קורס חדש</h3>
                 <button onclick="app.closeCreateModal()" class="text-slate-400 hover:text-slate-600">
@@ -294,9 +295,7 @@
             
             <!-- Loading State inside Modal -->
             <div id="modal-loading" class="hidden absolute inset-0 bg-white/95 z-10 flex flex-col items-center justify-center p-6">
-                <div class="loader mb-4"></div>
-                <h4 class="font-bold text-slate-800">הבינה המלאכותית מתכננת את הקורס...</h4>
-                <p class="text-sm text-slate-500 text-center mt-2">אנו בונים סילבוס מותאם אישית לפי הדרישות שלך. זה ייקח מספר שניות.</p>
+                <!-- התוכן פה מתחלף דינמית דרך JS, כולל הצגת שגיאות מפורטות במקרה של כישלון -->
             </div>
         </div>
     </div>
@@ -357,7 +356,7 @@
                 window.app.renderDashboard();
             },
 
-            // --- Storage & Sync (No Firebase) ---
+            // --- Storage & Sync ---
             loadCoursesFromStorage: () => {
                 const stored = localStorage.getItem('smartlearn_courses');
                 if (stored) {
@@ -386,7 +385,6 @@
                 const currentKey = window.app.getApiKey();
                 document.getElementById('input-api-key').value = currentKey || '';
                 
-                // If forced (no key exists), hide the close button
                 if (forceClose) {
                     document.getElementById('close-settings-btn').classList.add('hidden');
                 } else {
@@ -466,12 +464,10 @@
                 m.classList.remove('opacity-0');
                 c.classList.remove('scale-95');
                 
-                // Form is NOT reset here anymore! So previous text is kept if it failed.
                 document.getElementById('modal-loading').classList.add('hidden');
             },
             
             closeCreateModal: () => {
-                // If it's currently generating content, user can't close via clicking X
                 if(window.app.state.isGeneratingContent) return;
                 const m = document.getElementById('create-modal');
                 const c = document.getElementById('create-modal-content');
@@ -485,11 +481,11 @@
                 const apiKey = window.app.getApiKey();
                 if (!apiKey) {
                     window.app.openSettingsModal(true);
-                    throw new Error("API Key is missing");
+                    throw new Error("מפתח API חסר. אנא הזן מפתח חוקי.");
                 }
 
-                // Updated to the latest recommended 2026 model: gemini-3.8-flash
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
+                // חזרה למודל היציב ביותר 1.5-flash שלא דורש הרשאות מיוחדות
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
                 
                 const payload = {
                     contents: [{ role: 'user', parts: [{ text: prompt }] }]
@@ -513,28 +509,30 @@
                         const result = await response.json();
                         
                         if (result.error) {
-                            throw new Error(result.error.message);
+                            throw new Error(`שגיאת שרת: ${result.error.message}`);
                         }
 
                         if (result.candidates && result.candidates.length > 0) {
                             let text = result.candidates[0].content.parts[0].text;
                             
                             if (schema) {
-                                // מנקה תגיות מארקדאון במקרה וה-API החזיר אותן למרות שביקשנו JSON
+                                // הגנה חכמה מול באגים של JSON
                                 let cleanText = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-                                
-                                // חותך רק את התוכן שבין הסוגריים המסולסלים ליתר ביטחון
                                 const firstBrace = cleanText.indexOf('{');
                                 const lastBrace = cleanText.lastIndexOf('}');
                                 if (firstBrace !== -1 && lastBrace !== -1) {
                                     cleanText = cleanText.substring(firstBrace, lastBrace + 1);
                                 }
                                 
-                                return JSON.parse(cleanText);
+                                try {
+                                    return JSON.parse(cleanText);
+                                } catch (parseError) {
+                                    throw new Error("המידע שהתקבל מגוגל אינו בפורמט תקין.");
+                                }
                             }
                             return text;
                         } else {
-                            throw new Error("No candidates returned from Gemini.");
+                            throw new Error("גוגל לא החזירה טקסט בתשובה.");
                         }
                     } catch (e) {
                         console.error(`Gemini API Error (Attempt ${i+1}):`, e);
@@ -551,10 +549,18 @@
                 const topic = document.getElementById('input-topic').value;
                 const currentLevel = document.getElementById('input-current-level').value;
                 const targetLevel = document.getElementById('input-target-level').value;
-                const numLessons = parseInt(document.getElementById('input-lessons').value);
+                const numLessons = parseInt(document.getElementById('input-lessons').value) || 5;
                 const persona = document.getElementById('input-persona').value;
                 
-                document.getElementById('modal-loading').classList.remove('hidden');
+                const loadingEl = document.getElementById('modal-loading');
+                
+                // אתחול מסך הטעינה התקין
+                loadingEl.innerHTML = `
+                    <div class="loader mb-4"></div>
+                    <h4 class="font-bold text-slate-800">הבינה המלאכותית מתכננת את הקורס...</h4>
+                    <p class="text-sm text-slate-500 text-center mt-2">אנו בונים סילבוס מותאם אישית לפי הדרישות שלך. זה ייקח מספר שניות.</p>
+                `;
+                loadingEl.classList.remove('hidden');
                 window.app.state.isGeneratingContent = true;
 
                 const prompt = `אתה מומחה בבניית תוכניות לימוד. צור סילבוס לקורס בנושא '${topic}'.
@@ -582,20 +588,21 @@
                 try {
                     const syllabusData = await window.app.callGemini(prompt, syllabusSchema);
                     
-                    if(!syllabusData.lessons || syllabusData.lessons.length === 0) throw new Error("Invalid syllabus");
+                    if(!syllabusData || !syllabusData.lessons || !Array.isArray(syllabusData.lessons) || syllabusData.lessons.length === 0) {
+                        throw new Error("הבינה המלאכותית לא החזירה סילבוס תקין. נסה שוב.");
+                    }
 
                     const newCourse = {
                         id: 'course_' + Date.now(),
                         topic, currentLevel, targetLevel, numLessons, persona,
-                        syllabus: syllabusData.lessons.map(l => ({ ...l, contentData: null })), // Init empty content
+                        syllabus: syllabusData.lessons.map(l => ({ ...l, contentData: null })),
                         progress: 0,
                         createdAt: Date.now()
                     };
                     
-                    window.app.state.courses.unshift(newCourse); // Add to top
+                    window.app.state.courses.unshift(newCourse);
                     window.app.saveCoursesToStorage();
                     
-                    // פעולות סגירה רק כשיש הצלחה!
                     window.app.state.isGeneratingContent = false;
                     document.getElementById('create-course-form').reset();
                     window.app.closeCreateModal();
@@ -605,11 +612,15 @@
 
                 } catch(error) {
                     console.error("Create course failed", error);
-                    window.app.showToast('אירעה שגיאה. ייתכן והמפתח שגוי או שיש בעיית תקשורת. נסה שוב.');
-                } finally {
-                    // תמיד מסיר את מסך הטעינה כדי לא לתקוע את המשתמש
                     window.app.state.isGeneratingContent = false;
-                    document.getElementById('modal-loading').classList.add('hidden');
+                    
+                    // כאן הקסם: במקום להיתקע, המסך מציג לך את השגיאה המדויקת ויאפשר לחזור לטופס
+                    loadingEl.innerHTML = `
+                        <div class="text-red-500 text-5xl mb-4"><i class="fa-solid fa-circle-exclamation"></i></div>
+                        <h3 class="text-xl font-bold text-slate-800">שגיאה ביצירת הקורס</h3>
+                        <p class="text-sm mt-2 text-center text-slate-600 max-w-xs font-medium">${error.message}</p>
+                        <button type="button" onclick="document.getElementById('modal-loading').classList.add('hidden')" class="mt-6 bg-slate-200 hover:bg-slate-300 text-slate-800 px-5 py-2 rounded-lg font-medium transition-colors">חזור לטופס ונסה שוב</button>
+                    `;
                 }
             },
 
@@ -745,11 +756,16 @@
                 
                 window.app.navigate('lesson');
                 
-                // Check if lesson data already exists in LocalStorage
                 if (course.syllabus[lessonIndex].contentData) {
                     window.app.renderLesson(course.syllabus[lessonIndex].contentData);
                 } else {
                     document.getElementById('lesson-loading').classList.remove('hidden');
+                    // Reset Error Message if existed
+                    document.getElementById('lesson-loading').innerHTML = `
+                        <div class="loader mb-4"></div>
+                        <h3 class="text-xl font-bold text-slate-700">הבינה המלאכותית כותבת את השיעור...</h3>
+                        <p class="text-slate-500 text-sm mt-2 text-center max-w-sm">מתאים את התוכן לסגנון הלמידה שלך, בונה שאלות בחן ומייצר תזכורות משיעורים קודמים.</p>
+                    `;
                     await window.app.generateLesson(lessonIndex, course);
                 }
             },
@@ -793,9 +809,8 @@
 
                 try {
                     const lessonData = await window.app.callGemini(prompt, lessonSchema);
-                    if(!lessonData.content || !lessonData.quiz) throw new Error("Invalid format");
+                    if(!lessonData.content || !lessonData.quiz) throw new Error("מבנה נתונים לא תקין");
 
-                    // Save inside the course object in LocalStorage
                     course.syllabus[lessonIndex].contentData = lessonData;
                     window.app.saveCoursesToStorage();
                     
@@ -804,10 +819,10 @@
                 } catch(error) {
                     console.error("Lesson generation failed", error);
                     document.getElementById('lesson-loading').innerHTML = `
-                        <div class="text-red-500 text-4xl mb-4"><i class="fa-solid fa-circle-exclamation"></i></div>
+                        <div class="text-red-500 text-5xl mb-4"><i class="fa-solid fa-circle-exclamation"></i></div>
                         <h3 class="text-xl font-bold">אירעה שגיאה ביצירת השיעור</h3>
-                        <p class="text-sm mt-2">${error.message}</p>
-                        <button onclick="app.startLesson(${lessonIndex})" class="mt-4 bg-brand-600 text-white px-4 py-2 rounded">נסה שוב</button>
+                        <p class="text-sm mt-2 font-medium">${error.message}</p>
+                        <button onclick="app.startLesson(${lessonIndex})" class="mt-6 bg-brand-600 hover:bg-brand-700 text-white px-5 py-2 rounded-lg transition-colors">נסה שוב</button>
                     `;
                 }
             },
