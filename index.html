@@ -506,15 +506,55 @@
                 return cleaned.trim();
             },
 
+            workingModel: null,
+
+            getAvailableModels: async (apiKey) => {
+                if (window.app.workingModel) {
+                    return [window.app.workingModel, 'gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-2.5-flash', 'gemini-2.5-pro'];
+                }
+                try {
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.models && Array.isArray(data.models)) {
+                            const available = data.models
+                                .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+                                .map(m => m.name.replace(/^models\//, ''));
+
+                            const priority = [
+                                'gemini-3.8-flash',
+                                'gemini-3.1-pro-preview',
+                                'gemini-2.5-flash',
+                                'gemini-2.5-pro',
+                                'gemini-3.1-flash-lite'
+                            ];
+
+                            const ordered = priority.filter(p => available.includes(p));
+                            for (const m of available) {
+                                if (!ordered.includes(m)) ordered.push(m);
+                            }
+
+                            if (ordered.length > 0) {
+                                console.log("Gemini ListModels successfully discovered available models:", ordered);
+                                return ordered;
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.warn("Could not retrieve ListModels dynamically, using fallback list:", err);
+                }
+                return ['gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-3.1-flash-lite'];
+            },
+
             // --- Gemini API Call ---
-            callGemini: async (prompt, schema = null, retries = 3) => {
+            callGemini: async (prompt, schema = null, retries = 2) => {
                 const apiKey = window.app.getApiKey();
                 if (!apiKey) {
                     window.app.openSettingsModal(true);
                     throw new Error("API Key is missing");
                 }
 
-                const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+                const models = await window.app.getAvailableModels(apiKey);
                 const payload = {
                     contents: [{ role: 'user', parts: [{ text: prompt }] }]
                 };
@@ -552,6 +592,7 @@
                             }
 
                             if (result.candidates && result.candidates.length > 0) {
+                                window.app.workingModel = model; // Cache working model for future calls
                                 let text = result.candidates[0].content.parts[0].text;
                                 if (schema) {
                                     text = window.app.cleanJsonResponse(text);
@@ -563,10 +604,10 @@
                             }
                         } catch (e) {
                             lastError = e;
-                            console.error(`Gemini API Error (${model}, Attempt ${i+1}):`, e);
-                            if (e.status === 404) break; // Model not found, fallback to next model
+                            console.warn(`Gemini API Error (${model}, Attempt ${i+1}):`, e);
+                            if (e.status === 404) break; // Model not found in this API version, try next model
                             if ([400, 401, 403].includes(e.status)) throw e; // Bad key / unauthorized - fail immediately
-                            if (i < retries - 1) await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
+                            if (i < retries - 1) await new Promise(r => setTimeout(r, 1000));
                         }
                     }
                 }
