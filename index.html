@@ -559,11 +559,14 @@
                     contents: [{ role: 'user', parts: [{ text: prompt }] }]
                 };
 
+                payload.generationConfig = {
+                    temperature: 0.7,
+                    maxOutputTokens: 8192
+                };
+
                 if (schema) {
-                    payload.generationConfig = { 
-                        responseMimeType: "application/json",
-                        responseSchema: schema
-                    };
+                    payload.generationConfig.responseMimeType = "application/json";
+                    payload.generationConfig.responseSchema = schema;
                 }
 
                 let lastError = new Error("Unknown error");
@@ -593,7 +596,12 @@
 
                             if (result.candidates && result.candidates.length > 0) {
                                 window.app.workingModel = model; // Cache working model for future calls
-                                let text = result.candidates[0].content.parts[0].text;
+                                const candidate = result.candidates[0];
+                                const parts = candidate.content?.parts || [];
+                                // Filter out thinking/reasoning parts from thinking models
+                                let text = parts.filter(p => !p.thought).map(p => p.text || '').join('');
+                                if (!text && parts.length > 0) text = parts[0].text || '';
+
                                 if (schema) {
                                     text = window.app.cleanJsonResponse(text);
                                     return JSON.parse(text);
@@ -634,36 +642,64 @@
                 
                 window.app.state.isGeneratingContent = true;
 
-                const prompt = `אתה מומחה בבניית תוכניות לימוד. צור סילבוס לקורס בנושא '${topic}'.
-רמת ידע נוכחית של הלומד: ${currentLevel}.
-רמה מבוקשת בסיום: ${targetLevel}.
-מספר השיעורים המבוקש בקורס: ${numLessons}.
-עליך להחזיר בדיוק ${numLessons} שיעורים, עם כותרת קצרה ותקציר של משפט אחד לכל שיעור.`;
+                const prompt = `אתה מומחה פדגוגי מנוסה בבניית תוכניות לימוד מקיפות. עליך לבנות סילבוס מלא ומובנה לקורס בנושא '${topic}'.
+
+פרטי הקורס:
+- רמת פתיחה של הלומד: ${currentLevel}
+- רמת יעד בסיום הקורס: ${targetLevel}
+- סגנון פדגוגי מבוקש: ${persona}
+- כמות שיעורים מבוקשת: בדיוק ${numLessons} שיעורים!
+
+הנחיות חובה:
+1. המערך 'lessons' חייב להכיל בדיוק ${numLessons} פריטים נפרדים (שיעור 1 עד שיעור ${numLessons})!
+2. חל איסור מוחלט לאחד שיעורים או להחזיר פחות מ-${numLessons} פריטים.
+3. לכל שיעור יש לספק:
+   - 'title': כותרת קצרה, ממוקדת וברורה של השיעור (עד 6 מילים).
+   - 'summary': משפט אחד בלבד (עד 20 מילים) המסביר מה נלמד בשיעור.
+4. השיעורים צריכים להתקדם בסדר כרונולוגי הגיוני - מהבסיס והמבוא ועד לרמת היעד המבוקשת.`;
 
                 const syllabusSchema = {
                     type: "OBJECT",
                     properties: {
                         lessons: {
                             type: "ARRAY",
+                            description: `רשימה של בדיוק ${numLessons} שיעורים נפרדים`,
                             items: {
                                 type: "OBJECT",
                                 properties: {
-                                    title: { type: "STRING" },
-                                    summary: { type: "STRING" }
-                                }
+                                    title: { 
+                                        type: "STRING",
+                                        description: "כותרת קצרה וממוקדת של השיעור (עד 6 מילים)"
+                                    },
+                                    summary: { 
+                                        type: "STRING",
+                                        description: "תקציר של משפט אחד בלבד המתאר מה נלמד בשיעור (עד 20 מילים)"
+                                    }
+                                },
+                                required: ["title", "summary"]
                             }
                         }
-                    }
+                    },
+                    required: ["lessons"]
                 };
 
                 try {
                     const syllabusData = await window.app.callGemini(prompt, syllabusSchema);
                     
-                    if(!syllabusData.lessons || syllabusData.lessons.length === 0) throw new Error("Invalid syllabus");
+                    if(!syllabusData.lessons || syllabusData.lessons.length === 0) {
+                        throw new Error("הסילבוס שהוחזר ריק");
+                    }
+
+                    // Align lesson count with actual generated lessons
+                    const actualLessonCount = syllabusData.lessons.length;
 
                     const newCourse = {
                         id: 'course_' + Date.now(),
-                        topic, currentLevel, targetLevel, numLessons, persona,
+                        topic,
+                        currentLevel,
+                        targetLevel,
+                        numLessons: actualLessonCount,
+                        persona,
                         syllabus: syllabusData.lessons.map(l => ({ ...l, contentData: null })), 
                         progress: 0,
                         createdAt: Date.now()

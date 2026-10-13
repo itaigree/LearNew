@@ -1,4 +1,4 @@
-const CACHE_NAME = 'smartlearn-cache-v12';
+const CACHE_NAME = 'smartlearn-cache-v13';
 const urlsToCache = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', event => {
