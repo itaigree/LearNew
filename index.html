@@ -514,8 +514,7 @@
                     throw new Error("API Key is missing");
                 }
 
-                const apiUrl = `[https://generativelanguage.googleapis.com/v1beta/models/gemini-3-8-flash:generateContent?key=$](https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=$){apiKey}`;
-                
+                const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
                 const payload = {
                     contents: [{ role: 'user', parts: [{ text: prompt }] }]
                 };
@@ -527,42 +526,51 @@
                     };
                 }
 
-                for (let i = 0; i < retries; i++) {
-                    try {
-                        const response = await fetch(apiUrl, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
-                        
-                        const textData = await response.text();
-                        
-                        if (textData.trim().startsWith('<')) {
-                            throw new Error(`השרת החזיר דף אינטרנט במקום נתונים. ודא שהמודל נתמך במפתח שלך.`);
-                        }
-
-                        const result = JSON.parse(textData);
-                        
-                        if (result.error) {
-                            throw new Error(result.error.message);
-                        }
-
-                        if (result.candidates && result.candidates.length > 0) {
-                            let text = result.candidates[0].content.parts[0].text;
-                            if (schema) {
-                                text = window.app.cleanJsonResponse(text);
-                                return JSON.parse(text);
+                let lastError = new Error("Unknown error");
+                for (const model of models) {
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                    for (let i = 0; i < retries; i++) {
+                        try {
+                            const response = await fetch(apiUrl, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            
+                            const textData = await response.text();
+                            
+                            if (textData.trim().startsWith('<')) {
+                                throw new Error(`השרת החזיר דף אינטרנט במקום נתונים. ודא שהמודל נתמך במפתח שלך.`);
                             }
-                            return text;
-                        } else {
-                            throw new Error("No candidates returned from Gemini.");
+
+                            const result = JSON.parse(textData);
+                            
+                            if (result.error) {
+                                const apiErr = new Error(result.error.message);
+                                apiErr.status = result.error.code;
+                                throw apiErr;
+                            }
+
+                            if (result.candidates && result.candidates.length > 0) {
+                                let text = result.candidates[0].content.parts[0].text;
+                                if (schema) {
+                                    text = window.app.cleanJsonResponse(text);
+                                    return JSON.parse(text);
+                                }
+                                return text;
+                            } else {
+                                throw new Error("No candidates returned from Gemini.");
+                            }
+                        } catch (e) {
+                            lastError = e;
+                            console.error(`Gemini API Error (${model}, Attempt ${i+1}):`, e);
+                            if (e.status === 404) break; // Model not found, fallback to next model
+                            if ([400, 401, 403].includes(e.status)) throw e; // Bad key / unauthorized - fail immediately
+                            if (i < retries - 1) await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
                         }
-                    } catch (e) {
-                        console.error(`Gemini API Error (Attempt ${i+1}):`, e);
-                        if (i === retries - 1) throw e;
-                        await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
                     }
                 }
+                throw lastError;
             },
 
             // --- Course Generation ---
