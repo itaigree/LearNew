@@ -39,7 +39,7 @@
         }
     </script>
     <style>
-        body { font-family: 'Heebo', sans-serif; background-color: #f8fafc; }
+        body { font-family: 'Heebo', sans-serif; background-color: #f8fafc; height: 100vh; height: 100dvh; }
         
         /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 8px; }
@@ -79,7 +79,7 @@
         .hidden-view { display: none !important; }
     </style>
 </head>
-<body class="text-slate-800 antialiased h-screen flex flex-col overflow-hidden">
+<body class="text-slate-800 antialiased flex flex-col overflow-hidden">
 
     <header class="bg-white shadow-sm z-10 relative">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -87,7 +87,7 @@
                 <div class="w-8 h-8 bg-brand-600 text-white rounded-lg flex items-center justify-center font-bold text-xl">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v15</span></h1>
+                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v16</span></h1>
             </div>
             
             <div id="nav-actions" class="flex items-center gap-4">
@@ -166,7 +166,7 @@
                 </div>
                 
                 <!-- Scrollable Content -->
-                <div class="flex-1 overflow-y-auto p-6 md:p-10 relative" id="lesson-scroll-area">
+                <div class="flex-1 overflow-y-auto p-6 pb-28 md:p-10 relative" id="lesson-scroll-area">
                     
                     <div id="lesson-loading" class="absolute inset-0 bg-white flex flex-col items-center justify-center z-10 hidden">
                         <div id="lesson-loading-spinner" class="loader mb-4"></div>
@@ -216,7 +216,7 @@
                 <i class="fa-solid fa-comments"></i>
             </button>
 
-            <div id="chat-panel" class="fixed inset-x-0 bottom-0 z-30 h-[70vh] rounded-t-2xl shadow-2xl translate-y-full transition-transform duration-300 md:static md:z-auto md:h-auto md:w-80 lg:w-96 md:rounded-none md:shadow-none md:translate-y-0 border-r border-slate-200 bg-slate-50 flex flex-col shrink-0 overflow-hidden">
+            <div id="chat-panel" class="fixed inset-x-0 bottom-0 z-30 h-[70dvh] rounded-t-2xl shadow-2xl translate-y-full transition-transform duration-300 md:static md:z-auto md:h-auto md:w-80 lg:w-96 md:rounded-none md:shadow-none md:translate-y-0 border-r border-slate-200 bg-slate-50 flex flex-col shrink-0 overflow-hidden">
                 <div class="p-4 border-b border-slate-200 bg-white flex items-center gap-3">
                     <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg">
                         <i class="fa-solid fa-robot"></i>
@@ -256,15 +256,15 @@
 
     <!-- Create Course Modal -->
     <div id="create-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="create-modal-content">
-            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h3 class="font-bold text-lg text-slate-800">צור קורס חדש</h3>
+        <div class="relative bg-white rounded-2xl shadow-xl w-[calc(100%-2rem)] max-w-lg max-h-[90dvh] flex flex-col overflow-hidden transform scale-95 transition-transform duration-300" id="create-modal-content">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                <h3 id="create-modal-title" class="font-bold text-lg text-slate-800">צור קורס חדש</h3>
                 <button onclick="app.closeCreateModal()" class="text-slate-400 hover:text-slate-600">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
             
-            <form id="create-course-form" onsubmit="app.generateCourse(event)" class="p-6">
+            <form id="create-course-form" onsubmit="app.generateCourse(event)" class="p-6 overflow-y-auto">
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">נושא הקורס</label>
@@ -314,6 +314,28 @@
                     </button>
                 </div>
             </form>
+
+            <!-- Syllabus review: approve, or ask the AI for changes -->
+            <div id="syllabus-review" class="hidden flex-1 min-h-0 flex flex-col p-6">
+                <p id="review-meta" class="text-sm font-bold text-brand-700 mb-1"></p>
+                <p class="text-sm text-slate-500 mb-4">עבור על הסילבוס. אם תרצה שינוי, כתוב מה לשנות ונעדכן אותו לפני שהקורס נוצר.</p>
+                <ol id="review-lessons" class="flex-1 min-h-0 overflow-y-auto space-y-3 border border-slate-100 rounded-lg p-4 bg-slate-50"></ol>
+                <label for="review-feedback" class="block text-sm font-medium text-slate-700 mt-4 mb-1">רוצה לשנות משהו? (רשות)</label>
+                <textarea id="review-feedback" rows="2" placeholder="לדוגמה: תוסיף שיעור על..., תוריד את..., תתמקד יותר ב..." class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-none"></textarea>
+                <div class="mt-4 flex flex-wrap justify-between items-center gap-2">
+                    <button type="button" onclick="app.backToCourseForm()" class="px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                        <i class="fa-solid fa-arrow-right ml-1"></i> חזרה לטופס
+                    </button>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="app.reviseSyllabus()" class="px-4 py-2 text-sm font-medium text-brand-700 border border-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
+                            <i class="fa-solid fa-pen ml-1"></i> עדכן סילבוס
+                        </button>
+                        <button type="button" onclick="app.approveSyllabus()" class="px-4 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-sm transition-colors">
+                            <i class="fa-solid fa-check ml-1"></i> אשר וצור קורס
+                        </button>
+                    </div>
+                </div>
+            </div>
             
             <!-- Loading State inside Modal -->
             <div id="modal-loading" class="hidden absolute inset-0 bg-white/95 z-10 flex flex-col items-center justify-center p-6">
@@ -321,14 +343,14 @@
                 <div id="modal-error-icon" class="text-red-500 text-4xl mb-4 hidden"><i class="fa-solid fa-circle-exclamation"></i></div>
                 <h4 id="modal-title" class="font-bold text-slate-800">הבינה המלאכותית מתכננת את הקורס...</h4>
                 <p id="modal-subtitle" class="text-sm text-slate-500 text-center mt-2">אנו בונים סילבוס מותאם אישית לפי הדרישות שלך. זה ייקח מספר שניות.</p>
-                <button id="modal-close-btn" onclick="app.resetAndCloseCreateModal()" class="hidden mt-6 bg-slate-200 hover:bg-slate-300 text-slate-700 px-5 py-2 rounded-lg font-medium transition-colors">סגור וחזור</button>
+                <button id="modal-close-btn" onclick="app.hideModalLoading()" class="hidden mt-6 bg-slate-200 hover:bg-slate-300 text-slate-700 px-5 py-2 rounded-lg font-medium transition-colors">חזור</button>
             </div>
         </div>
     </div>
 
     <!-- Settings API Key Modal -->
     <div id="settings-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="settings-modal-content">
+        <div class="bg-white rounded-2xl shadow-xl w-[calc(100%-2rem)] max-w-md overflow-hidden transform scale-95 transition-transform duration-300" id="settings-modal-content">
             <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                 <h3 class="font-bold text-lg text-slate-800">הגדרות חיבור</h3>
                 <button onclick="app.closeSettingsModal()" class="text-slate-400 hover:text-slate-600" id="close-settings-btn">
@@ -374,6 +396,7 @@
                 currentCourseId: null,
                 currentLessonIndex: null,
                 isGeneratingContent: false,
+                pendingCourse: null,
                 chatHistory: []
             },
             
@@ -496,14 +519,9 @@
                 m.classList.remove('opacity-0');
                 c.classList.remove('scale-95');
                 
-                // Reset loading state if left over
-                document.getElementById('modal-loading').classList.add('hidden');
-                document.getElementById('modal-spinner').classList.remove('hidden');
-                document.getElementById('modal-error-icon').classList.add('hidden');
-                document.getElementById('modal-title').textContent = "הבינה המלאכותית מתכננת את הקורס...";
-                document.getElementById('modal-subtitle').textContent = "אנו בונים סילבוס מותאם אישית לפי הדרישות שלך. זה ייקח מספר שניות.";
-                document.getElementById('modal-title').classList.remove('text-red-600');
-                document.getElementById('modal-close-btn').classList.add('hidden');
+                // A syllabus that was generated but not approved yet is kept until approved or discarded
+                window.app.hideModalLoading();
+                window.app.showCreateStep(window.app.state.pendingCourse ? 'review' : 'form');
             },
             
             closeCreateModal: () => {
@@ -515,9 +533,39 @@
                 setTimeout(() => m.classList.add('hidden'), 300);
             },
 
-            resetAndCloseCreateModal: () => {
+            showCreateStep: (step) => {
+                const isReview = step === 'review';
+                document.getElementById('create-course-form').classList.toggle('hidden', isReview);
+                document.getElementById('syllabus-review').classList.toggle('hidden', !isReview);
+                document.getElementById('create-modal-title').textContent = isReview ? 'סקירת הסילבוס' : 'צור קורס חדש';
+                if (isReview) window.app.renderSyllabusReview();
+            },
+
+            showModalLoading: (title, subtitle) => {
+                window.app.state.isGeneratingContent = true;
+                document.getElementById('modal-loading').classList.remove('hidden');
+                document.getElementById('modal-spinner').classList.remove('hidden');
+                document.getElementById('modal-error-icon').classList.add('hidden');
+                document.getElementById('modal-title').textContent = title;
+                document.getElementById('modal-title').classList.remove('text-red-600');
+                document.getElementById('modal-subtitle').textContent = subtitle;
+                document.getElementById('modal-close-btn').classList.add('hidden');
+            },
+
+            // Error stays inside the modal so the form / syllabus underneath is preserved
+            showModalError: (error) => {
                 window.app.state.isGeneratingContent = false;
-                window.app.closeCreateModal();
+                document.getElementById('modal-spinner').classList.add('hidden');
+                document.getElementById('modal-error-icon').classList.remove('hidden');
+                document.getElementById('modal-title').textContent = "שגיאת תקשורת עם Gemini";
+                document.getElementById('modal-title').classList.add('text-red-600');
+                document.getElementById('modal-subtitle').textContent = `פרטי השגיאה: ${error.message}. נסה שוב.`;
+                document.getElementById('modal-close-btn').classList.remove('hidden');
+            },
+
+            hideModalLoading: () => {
+                window.app.state.isGeneratingContent = false;
+                document.getElementById('modal-loading').classList.add('hidden');
             },
 
             cleanJsonResponse: (text) => {
@@ -738,6 +786,31 @@
             },
 
             // --- Course Generation ---
+            syllabusSchema: (description) => ({
+                type: "OBJECT",
+                properties: {
+                    lessons: {
+                        type: "ARRAY",
+                        description,
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                title: { 
+                                    type: "STRING",
+                                    description: "כותרת קצרה וממוקדת של השיעור (עד 6 מילים)"
+                                },
+                                summary: { 
+                                    type: "STRING",
+                                    description: "תקציר של משפט אחד בלבד המתאר מה נלמד בשיעור (עד 20 מילים)"
+                                }
+                            },
+                            required: ["title", "summary"]
+                        }
+                    }
+                },
+                required: ["lessons"]
+            }),
+
             generateCourse: async (e) => {
                 e.preventDefault();
                 
@@ -747,15 +820,7 @@
                 const numLessons = parseInt(document.getElementById('input-lessons').value);
                 const persona = document.getElementById('input-persona').value;
                 
-                document.getElementById('modal-loading').classList.remove('hidden');
-                document.getElementById('modal-spinner').classList.remove('hidden');
-                document.getElementById('modal-error-icon').classList.add('hidden');
-                document.getElementById('modal-title').textContent = "הבינה המלאכותית מתכננת את הקורס...";
-                document.getElementById('modal-subtitle').textContent = "אנו בונים סילבוס מותאם אישית לפי הדרישות שלך. זה ייקח מספר שניות.";
-                document.getElementById('modal-title').classList.remove('text-red-600');
-                document.getElementById('modal-close-btn').classList.add('hidden');
-                
-                window.app.state.isGeneratingContent = true;
+                window.app.showModalLoading("הבינה המלאכותית מתכננת את הקורס...", "אנו בונים סילבוס מותאם אישית לפי הדרישות שלך. זה ייקח מספר שניות.");
 
                 const prompt = `אתה מומחה פדגוגי מנוסה בבניית תוכניות לימוד מקיפות. עליך לבנות סילבוס מלא ומובנה לקורס בנושא '${topic}'.
 
@@ -773,76 +838,114 @@
    - 'summary': משפט אחד בלבד (עד 20 מילים) המסביר מה נלמד בשיעור.
 4. השיעורים צריכים להתקדם בסדר כרונולוגי הגיוני - מהבסיס והמבוא ועד לרמת היעד המבוקשת.`;
 
-                const syllabusSchema = {
-                    type: "OBJECT",
-                    properties: {
-                        lessons: {
-                            type: "ARRAY",
-                            description: `רשימה של בדיוק ${numLessons} שיעורים נפרדים`,
-                            items: {
-                                type: "OBJECT",
-                                properties: {
-                                    title: { 
-                                        type: "STRING",
-                                        description: "כותרת קצרה וממוקדת של השיעור (עד 6 מילים)"
-                                    },
-                                    summary: { 
-                                        type: "STRING",
-                                        description: "תקציר של משפט אחד בלבד המתאר מה נלמד בשיעור (עד 20 מילים)"
-                                    }
-                                },
-                                required: ["title", "summary"]
-                            }
-                        }
-                    },
-                    required: ["lessons"]
-                };
-
                 try {
-                    const syllabusData = await window.app.callGemini(prompt, { schema: syllabusSchema });
+                    const syllabusData = await window.app.callGemini(prompt, { schema: window.app.syllabusSchema(`רשימה של בדיוק ${numLessons} שיעורים נפרדים`) });
                     
                     if(!syllabusData.lessons || syllabusData.lessons.length === 0) {
                         throw new Error("הסילבוס שהוחזר ריק");
                     }
 
-                    // Align lesson count with actual generated lessons
-                    const actualLessonCount = syllabusData.lessons.length;
-
-                    const newCourse = {
-                        id: 'course_' + Date.now(),
-                        topic,
-                        currentLevel,
-                        targetLevel,
-                        numLessons: actualLessonCount,
-                        persona,
-                        syllabus: syllabusData.lessons.map(l => ({ ...l, contentData: null, completed: false })), 
-                        progress: 0,
-                        createdAt: Date.now()
-                    };
-                    
-                    window.app.state.courses.unshift(newCourse);
-                    window.app.saveCoursesToStorage();
-                    
-                    // Success! Clear the form and close.
-                    document.getElementById('create-course-form').reset();
-                    window.app.state.isGeneratingContent = false;
-                    window.app.closeCreateModal();
-                    
-                    window.app.showToast('הסילבוס נוצר בהצלחה!');
-                    window.app.openCourse(newCourse.id);
+                    // Let the user review (and ask for changes) before the course is created
+                    window.app.state.pendingCourse = { topic, currentLevel, targetLevel, persona, lessons: syllabusData.lessons };
+                    window.app.hideModalLoading();
+                    window.app.showCreateStep('review');
 
                 } catch(error) {
                     console.error("Create course failed", error);
-                    window.app.state.isGeneratingContent = false;
-                    
-                    // Show error inside modal so data is preserved
-                    document.getElementById('modal-spinner').classList.add('hidden');
-                    document.getElementById('modal-error-icon').classList.remove('hidden');
-                    document.getElementById('modal-title').textContent = "שגיאת תקשורת עם Gemini";
-                    document.getElementById('modal-title').classList.add('text-red-600');
-                    document.getElementById('modal-subtitle').textContent = `פרטי השגיאה: ${error.message}. נסה שוב.`;
-                    document.getElementById('modal-close-btn').classList.remove('hidden');
+                    window.app.showModalError(error);
                 }
+            },
+
+            renderSyllabusReview: () => {
+                const p = window.app.state.pendingCourse;
+                const esc = window.app.escapeHtml;
+                document.getElementById('review-meta').textContent = `${p.topic} · ${p.lessons.length} שיעורים`;
+                const list = document.getElementById('review-lessons');
+                list.innerHTML = p.lessons.map((l, i) => `
+                    <li class="flex gap-3">
+                        <span class="w-6 h-6 rounded-full bg-brand-50 text-brand-600 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">${i + 1}</span>
+                        <div>
+                            <div class="font-medium text-slate-800 text-sm">${esc(l.title)}</div>
+                            <div class="text-xs text-slate-500 mt-0.5">${esc(l.summary)}</div>
+                        </div>
+                    </li>
+                `).join('');
+                list.scrollTop = 0;
+            },
+
+            reviseSyllabus: async () => {
+                const feedbackEl = document.getElementById('review-feedback');
+                const feedback = feedbackEl.value.trim();
+                if (!feedback) {
+                    feedbackEl.focus();
+                    window.app.showToast('כתוב מה תרצה לשנות בסילבוס');
+                    return;
+                }
+                const p = window.app.state.pendingCourse;
+                window.app.showModalLoading("מעדכן את הסילבוס...", "הבינה המלאכותית מכניסה את השינויים שביקשת.");
+
+                const prompt = `אתה מומחה פדגוגי מנוסה. לפניך סילבוס לקורס בנושא '${p.topic}'.
+רמת פתיחה: ${p.currentLevel}. רמת יעד: ${p.targetLevel}. סגנון: ${p.persona}.
+
+הסילבוס הנוכחי:
+${JSON.stringify(p.lessons)}
+
+הלומד ביקש את השינויים הבאים:
+"${feedback}"
+
+עדכן את הסילבוס לפי הבקשה והחזר את הסילבוס המלא המעודכן.
+הנחיות:
+1. שמור על כל מה שהלומד לא ביקש לשנות.
+2. שמור על מספר השיעורים (${p.lessons.length}) אלא אם הבקשה מחייבת להוסיף או להוריד שיעורים.
+3. לכל שיעור: 'title' קצר (עד 6 מילים) ו-'summary' של משפט אחד (עד 20 מילים).
+4. השיעורים צריכים להתקדם בסדר הגיוני - מהבסיס ועד לרמת היעד.`;
+
+                try {
+                    const syllabusData = await window.app.callGemini(prompt, { schema: window.app.syllabusSchema("רשימת השיעורים המעודכנת") });
+                    if (!syllabusData.lessons || syllabusData.lessons.length === 0) {
+                        throw new Error("הסילבוס שהוחזר ריק");
+                    }
+                    p.lessons = syllabusData.lessons;
+                    feedbackEl.value = '';
+                    window.app.hideModalLoading();
+                    window.app.renderSyllabusReview();
+                    window.app.showToast('הסילבוס עודכן!');
+                } catch (error) {
+                    console.error("Revise syllabus failed", error);
+                    window.app.showModalError(error);
+                }
+            },
+
+            backToCourseForm: () => {
+                window.app.state.pendingCourse = null;
+                document.getElementById('review-feedback').value = '';
+                window.app.showCreateStep('form');
+            },
+
+            approveSyllabus: () => {
+                const p = window.app.state.pendingCourse;
+                const newCourse = {
+                    id: 'course_' + Date.now(),
+                    topic: p.topic,
+                    currentLevel: p.currentLevel,
+                    targetLevel: p.targetLevel,
+                    numLessons: p.lessons.length,
+                    persona: p.persona,
+                    syllabus: p.lessons.map(l => ({ title: l.title, summary: l.summary, contentData: null, completed: false })), 
+                    progress: 0,
+                    createdAt: Date.now()
+                };
+                
+                window.app.state.courses.unshift(newCourse);
+                window.app.saveCoursesToStorage();
+                
+                window.app.state.pendingCourse = null;
+                document.getElementById('create-course-form').reset();
+                document.getElementById('review-feedback').value = '';
+                window.app.closeCreateModal();
+                
+                window.app.showToast('הקורס נוצר בהצלחה!');
+                window.app.openCourse(newCourse.id);
             },
 
             // --- Dashboard & Navigation ---
