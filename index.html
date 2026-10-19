@@ -507,10 +507,14 @@
             },
 
             workingModel: null,
+            discoveredModels: null,
+            unavailableModels: new Set(),
 
             getAvailableModels: async (apiKey) => {
+                const usable = (list) => list.filter(m => !window.app.unavailableModels.has(m));
                 if (window.app.workingModel) {
-                    return [window.app.workingModel, 'gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-2.5-flash', 'gemini-2.5-pro'];
+                    const rest = window.app.discoveredModels || ['gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-2.5-flash', 'gemini-3.1-flash-lite'];
+                    return usable([window.app.workingModel, ...rest.filter(m => m !== window.app.workingModel)]);
                 }
                 try {
                     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
@@ -525,7 +529,6 @@
                                 'gemini-3.8-flash',
                                 'gemini-3.1-pro-preview',
                                 'gemini-2.5-flash',
-                                'gemini-2.5-pro',
                                 'gemini-3.1-flash-lite'
                             ];
 
@@ -536,18 +539,19 @@
 
                             if (ordered.length > 0) {
                                 console.log("Gemini ListModels successfully discovered available models:", ordered);
-                                return ordered;
+                                window.app.discoveredModels = ordered;
+                                return usable(ordered);
                             }
                         }
                     }
                 } catch (err) {
                     console.warn("Could not retrieve ListModels dynamically, using fallback list:", err);
                 }
-                return ['gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-3.1-flash-lite'];
+                return usable(['gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-2.5-flash', 'gemini-3.1-flash-lite']);
             },
 
             // --- Gemini API Call ---
-            callGemini: async (prompt, schema = null, retries = 2) => {
+            callGemini: async (prompt, schema = null, retries = 2, maxOutputTokens = 8192) => {
                 const apiKey = window.app.getApiKey();
                 if (!apiKey) {
                     window.app.openSettingsModal(true);
@@ -561,7 +565,7 @@
 
                 payload.generationConfig = {
                     temperature: 0.7,
-                    maxOutputTokens: 8192
+                    maxOutputTokens
                 };
 
                 if (schema) {
@@ -569,7 +573,7 @@
                     payload.generationConfig.responseSchema = schema;
                 }
 
-                let lastError = new Error("Unknown error");
+                let lastError = null;
                 for (const model of models) {
                     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
                     for (let i = 0; i < retries; i++) {
@@ -597,6 +601,9 @@
                             if (result.candidates && result.candidates.length > 0) {
                                 window.app.workingModel = model; // Cache working model for future calls
                                 const candidate = result.candidates[0];
+                                if (candidate.finishReason === 'MAX_TOKENS') {
+                                    throw new Error(`התשובה של המודל (${model}) נקטעה כי חרגה ממגבלת אורך הפלט (MAX_TOKENS).`);
+                                }
                                 const parts = candidate.content?.parts || [];
                                 // Filter out thinking/reasoning parts from thinking models
                                 let text = parts.filter(p => !p.thought).map(p => p.text || '').join('');
@@ -611,15 +618,22 @@
                                 throw new Error("No candidates returned from Gemini.");
                             }
                         } catch (e) {
-                            lastError = e;
                             console.warn(`Gemini API Error (${model}, Attempt ${i+1}):`, e);
-                            if (e.status === 404) break; // Model not found in this API version, try next model
+                            // Model retired / not offered to this key - skip it, and don't let it mask a more meaningful earlier error
+                            const modelUnavailable = e.status === 404 || /no longer available|not found|is not supported/i.test(e.message || '');
+                            if (modelUnavailable) {
+                                window.app.unavailableModels.add(model);
+                                if (window.app.workingModel === model) window.app.workingModel = null;
+                                if (!lastError) lastError = e;
+                                break;
+                            }
+                            lastError = e;
                             if ([400, 401, 403].includes(e.status)) throw e; // Bad key / unauthorized - fail immediately
                             if (i < retries - 1) await new Promise(r => setTimeout(r, 1000));
                         }
                     }
                 }
-                throw lastError;
+                throw lastError || new Error("Unknown error");
             },
 
             // --- Course Generation ---
@@ -916,7 +930,7 @@
                 };
 
                 try {
-                    const lessonData = await window.app.callGemini(prompt, lessonSchema);
+                    const lessonData = await window.app.callGemini(prompt, lessonSchema, 2, 32768);
                     if(!lessonData.content || !lessonData.quiz) throw new Error("Invalid format");
 
                     course.syllabus[lessonIndex].contentData = lessonData;
