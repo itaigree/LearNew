@@ -87,14 +87,14 @@
                 <div class="w-8 h-8 bg-brand-600 text-white rounded-lg flex items-center justify-center font-bold text-xl">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v16</span></h1>
+                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v17</span></h1>
             </div>
             
             <div id="nav-actions" class="flex items-center gap-4">
                 <button id="back-btn" class="hidden text-sm font-medium text-slate-600 hover:text-brand-600 transition-colors" onclick="app.goBack()">
                     <i class="fa-solid fa-arrow-right ml-1"></i> חזור
                 </button>
-                <button onclick="app.openSettingsModal()" class="text-slate-500 hover:text-brand-600 transition-colors p-2" title="הגדרות API">
+                <button onclick="app.openSettingsModal()" class="text-slate-500 hover:text-brand-600 transition-colors p-2" title="הגדרות">
                     <i class="fa-solid fa-gear"></i>
                 </button>
             </div>
@@ -350,15 +350,15 @@
 
     <!-- Settings API Key Modal -->
     <div id="settings-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-2xl shadow-xl w-[calc(100%-2rem)] max-w-md overflow-hidden transform scale-95 transition-transform duration-300" id="settings-modal-content">
+        <div class="bg-white rounded-2xl shadow-xl w-[calc(100%-2rem)] max-w-md max-h-[90dvh] overflow-y-auto transform scale-95 transition-transform duration-300" id="settings-modal-content">
             <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h3 class="font-bold text-lg text-slate-800">הגדרות חיבור</h3>
+                <h3 class="font-bold text-lg text-slate-800">הגדרות</h3>
                 <button onclick="app.closeSettingsModal()" class="text-slate-400 hover:text-slate-600" id="close-settings-btn">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
             
-            <form onsubmit="app.saveApiKey(event)" class="p-6">
+            <form onsubmit="app.saveSettings(event)" class="p-6">
                 <div class="space-y-4">
                     <p class="text-sm text-slate-600">
                         כדי שהאפליקציה תייצר קורסים מותאמים אישית, יש להזין מפתח Google Gemini API. המפתח נשמר במכשיר שלך בלבד!
@@ -372,11 +372,26 @@
                             <i class="fa-solid fa-external-link-alt ml-1"></i> לחץ כאן כדי להפיק מפתח בחינם (Google AI Studio)
                         </a>
                     </div>
+
+                    <div class="pt-4 mt-2 border-t border-slate-100">
+                        <h4 class="text-sm font-bold text-slate-800 mb-1">ברירות מחדל לקורס חדש</h4>
+                        <p class="text-xs text-slate-500 mb-3">הערכים האלה ימולאו מראש בטופס יצירת קורס, ואפשר לשנות אותם שם לכל קורס.</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="settings-lessons" class="block text-sm font-medium text-slate-700 mb-1">מספר שיעורים</label>
+                                <input type="number" id="settings-lessons" min="1" max="30" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none">
+                            </div>
+                            <div>
+                                <label for="settings-persona" class="block text-sm font-medium text-slate-700 mb-1">סגנון למידה אישי</label>
+                                <select id="settings-persona" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"></select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="mt-8 flex justify-end">
                     <button type="submit" class="px-5 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-sm transition-colors">
-                        שמור מפתח
+                        שמור הגדרות
                     </button>
                 </div>
             </form>
@@ -401,6 +416,9 @@
             },
             
             init: () => {
+                // Settings offers the same learning styles as the create-course form
+                document.getElementById('settings-persona').innerHTML = document.getElementById('input-persona').innerHTML;
+                window.app.applyCourseDefaults();
                 window.app.loadCoursesFromStorage();
                 window.app.renderDashboard();
             },
@@ -434,11 +452,30 @@
                 return localStorage.getItem('smartlearn_api_key');
             },
 
+            getCourseDefaults: () => {
+                let saved = {};
+                try { saved = JSON.parse(localStorage.getItem('smartlearn_defaults')) || {}; } catch (e) {}
+                return {
+                    numLessons: saved.numLessons || 5,
+                    persona: saved.persona || document.getElementById('input-persona').options[0].value
+                };
+            },
+
+            // Pre-fill the create-course form with the defaults from settings
+            applyCourseDefaults: () => {
+                const d = window.app.getCourseDefaults();
+                document.getElementById('input-lessons').value = d.numLessons;
+                document.getElementById('input-persona').value = d.persona;
+            },
+
             openSettingsModal: (forceClose = false) => {
                 const m = document.getElementById('settings-modal');
                 const c = document.getElementById('settings-modal-content');
                 const currentKey = window.app.getApiKey();
                 document.getElementById('input-api-key').value = currentKey || '';
+                const d = window.app.getCourseDefaults();
+                document.getElementById('settings-lessons').value = d.numLessons;
+                document.getElementById('settings-persona').value = d.persona;
                 
                 if (forceClose) {
                     document.getElementById('close-settings-btn').classList.add('hidden');
@@ -460,12 +497,16 @@
                 setTimeout(() => m.classList.add('hidden'), 300);
             },
 
-            saveApiKey: (e) => {
+            saveSettings: (e) => {
                 e.preventDefault();
                 const key = document.getElementById('input-api-key').value.trim();
                 if (key) {
                     localStorage.setItem('smartlearn_api_key', key);
-                    window.app.showToast('המפתח נשמר בהצלחה!');
+                    const numLessons = Math.min(30, Math.max(1, parseInt(document.getElementById('settings-lessons').value) || 5));
+                    const persona = document.getElementById('settings-persona').value;
+                    localStorage.setItem('smartlearn_defaults', JSON.stringify({ numLessons, persona }));
+                    window.app.applyCourseDefaults();
+                    window.app.showToast('ההגדרות נשמרו בהצלחה!');
                     window.app.closeSettingsModal();
                 }
             },
@@ -498,7 +539,7 @@
             goBack: () => {
                 const s = window.app.state;
                 if (s.view === 'lesson') {
-                    window.app.openCourse(s.currentCourseId);
+                    window.app.openCourse(s.currentCourseId, true);
                 } else if (s.view === 'syllabus') {
                     window.app.navigate('dashboard');
                 }
@@ -940,7 +981,9 @@ ${JSON.stringify(p.lessons)}
                 window.app.saveCoursesToStorage();
                 
                 window.app.state.pendingCourse = null;
+                document.activeElement?.blur();
                 document.getElementById('create-course-form').reset();
+                window.app.applyCourseDefaults();
                 document.getElementById('review-feedback').value = '';
                 window.app.closeCreateModal();
                 
@@ -1019,7 +1062,8 @@ ${JSON.stringify(p.lessons)}
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;').replace(/'/g, '&#39;'),
 
-            openCourse: (courseId) => {
+            // keepScroll: re-render in place (e.g. back from a lesson) instead of starting at the top
+            openCourse: (courseId, keepScroll = false) => {
                 window.app.state.currentCourseId = courseId;
                 const course = window.app.getCurrentCourse();
                 if (!course) return;
@@ -1073,6 +1117,11 @@ ${JSON.stringify(p.lessons)}
                 });
 
                 window.app.navigate('syllabus');
+                // The browser keeps this container's old scroll position even while hidden, so reset it once visible
+                if (!keepScroll) {
+                    document.getElementById('view-syllabus').scrollTop = 0;
+                    window.scrollTo(0, 0);
+                }
             },
 
             // --- Lesson Handling ---
@@ -1087,7 +1136,6 @@ ${JSON.stringify(p.lessons)}
                 document.getElementById('lesson-streaming').classList.add('hidden');
                 document.getElementById('quiz-section').classList.add('hidden');
                 document.getElementById('lesson-nav').classList.add('hidden');
-                document.getElementById('lesson-scroll-area').scrollTop = 0;
 
                 window.app.state.chatHistory = [];
                 window.app.closeChat();
@@ -1103,6 +1151,7 @@ ${JSON.stringify(p.lessons)}
                 `;
 
                 window.app.navigate('lesson');
+                document.getElementById('lesson-scroll-area').scrollTop = 0; // only works once the view is visible
                 window.app.showLessonLoading();
 
                 const gen = window.app.generations[window.app.lessonKey(course.id, lessonIndex)];
@@ -1197,7 +1246,7 @@ ${JSON.stringify(p.lessons)}
                     } else {
                         window.app.showToast(`שיעור ${lessonIndex + 1} מוכן!`);
                         const s = window.app.state;
-                        if (s.view === 'syllabus' && s.currentCourseId === course.id) window.app.openCourse(course.id);
+                        if (s.view === 'syllabus' && s.currentCourseId === course.id) window.app.openCourse(course.id, true);
                     }
                 } catch(error) {
                     delete window.app.generations[key];
