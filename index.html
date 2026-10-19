@@ -87,7 +87,7 @@
                 <div class="w-8 h-8 bg-brand-600 text-white rounded-lg flex items-center justify-center font-bold text-xl">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v19</span></h1>
+                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v20</span></h1>
             </div>
             
             <div id="nav-actions" class="flex items-center gap-4">
@@ -502,7 +502,8 @@
 
                 // Opened from a notification while the app was closed (see sw.js)
                 const open = new URLSearchParams(location.search).get('open');
-                if (open) history.replaceState(null, '', location.pathname);
+                history.replaceState(window.app.historyEntry(), '', location.pathname);
+                window.addEventListener('popstate', window.app.onPopState);
                 if (open && open !== 'syllabus') window.app.handleOpenTarget(open);
                 else if (window.app.state.pendingCourse && window.app.getApiKey()) window.app.openCreateModal();
 
@@ -536,7 +537,15 @@
             },
             
             saveCoursesToStorage: () => {
-                localStorage.setItem('smartlearn_courses', JSON.stringify(window.app.state.courses));
+                try {
+                    localStorage.setItem('smartlearn_courses', JSON.stringify(window.app.state.courses));
+                    return true;
+                } catch (e) {
+                    // Usually the browser's storage quota (a few MB). Keep working in memory and tell the user.
+                    console.error("Saving courses failed", e);
+                    window.app.showToast('האחסון במכשיר מלא - השינוי לא נשמר. מחק קורס ישן כדי לפנות מקום.', 6000);
+                    return false;
+                }
             },
 
             getCurrentCourse: () => {
@@ -588,10 +597,13 @@
                 void m.offsetWidth; // trigger reflow
                 m.classList.remove('opacity-0');
                 c.classList.remove('scale-95');
+                window.app.pushModalState();
             },
 
-            closeSettingsModal: () => {
+            closeSettingsModal: (fromHistory = false) => {
                 const m = document.getElementById('settings-modal');
+                if (m.classList.contains('opacity-0')) return; // already closed / closing
+                if (!fromHistory) window.app.popModalState();
                 const c = document.getElementById('settings-modal-content');
                 m.classList.add('opacity-0');
                 c.classList.add('scale-95');
@@ -803,10 +815,13 @@
                 void m.offsetWidth;
                 m.classList.remove('opacity-0');
                 c.classList.remove('scale-95');
+                window.app.pushModalState();
             },
 
-            closeReminderModal: () => {
+            closeReminderModal: (fromHistory = false) => {
                 const m = document.getElementById('reminder-modal');
+                if (m.classList.contains('opacity-0')) return; // already closed / closing
+                if (!fromHistory) window.app.popModalState();
                 const c = document.getElementById('reminder-modal-content');
                 m.classList.add('opacity-0');
                 c.classList.add('scale-95');
@@ -814,20 +829,72 @@
             },
 
             // --- UI Navigation ---
-            showToast: (msg) => {
+            showToast: (msg, duration = 3000) => {
                 const t = document.getElementById('toast');
                 t.textContent = msg;
                 t.style.opacity = '1';
-                setTimeout(() => t.style.opacity = '0', 3000);
+                clearTimeout(window.app.toastTimer);
+                window.app.toastTimer = setTimeout(() => t.style.opacity = '0', duration);
             },
             
-            navigate: (viewId) => {
+            // Each screen gets a browser-history entry, so the phone's back button moves back inside the app
+            viewDepth: { dashboard: 0, syllabus: 1, lesson: 2 },
+
+            historyEntry: () => {
+                const s = window.app.state;
+                return { app: true, view: s.view, courseId: s.currentCourseId, lessonIndex: s.currentLessonIndex };
+            },
+
+            onPopState: (e) => {
+                window.app.closeAllModals();
+                const st = e.state;
+                const s = window.app.state;
+                if (!st || !st.app || st.view === 'dashboard') {
+                    if (s.view !== 'dashboard') window.app.navigate('dashboard', true);
+                    return;
+                }
+                const course = s.courses.find(c => c.id === st.courseId);
+                if (!course) return window.app.navigate('dashboard', true);
+                if (st.view === 'syllabus') {
+                    if (s.view !== 'syllabus' || s.currentCourseId !== st.courseId) window.app.openCourse(st.courseId, true, true);
+                } else if (st.view === 'lesson' && course.syllabus[st.lessonIndex]) {
+                    if (!window.app.isViewingLesson(st.courseId, st.lessonIndex)) {
+                        s.currentCourseId = st.courseId;
+                        window.app.startLesson(st.lessonIndex, true);
+                    }
+                }
+            },
+
+            // Dialogs also get a history entry, so back closes the dialog instead of leaving the screen
+            pushModalState: () => {
+                if (!(history.state && history.state.modal)) history.pushState({ ...window.app.historyEntry(), modal: true }, '');
+            },
+
+            popModalState: () => {
+                if (history.state && history.state.modal) history.back();
+            },
+
+            closeAllModals: () => {
+                window.app.closeCreateModal(true);
+                window.app.closeSettingsModal(true);
+                window.app.closeReminderModal(true);
+            },
+
+            navigate: (viewId, fromHistory = false) => {
+                const prevView = window.app.state.view;
                 document.getElementById('view-dashboard').classList.add('hidden-view');
                 document.getElementById('view-syllabus').classList.add('hidden-view');
                 document.getElementById('view-lesson').classList.add('hidden-view');
                 
                 document.getElementById(`view-${viewId}`).classList.remove('hidden-view');
                 window.app.state.view = viewId;
+
+                if (!fromHistory) {
+                    const entry = window.app.historyEntry();
+                    const overDialog = history.state && history.state.modal;
+                    if (window.app.viewDepth[viewId] > window.app.viewDepth[prevView] && !overDialog) history.pushState(entry, '');
+                    else history.replaceState(entry, '');
+                }
                 
                 const backBtn = document.getElementById('back-btn');
                 if (viewId === 'dashboard') {
@@ -840,6 +907,11 @@
             
             goBack: () => {
                 const s = window.app.state;
+                // Same as the phone's back button when we came here through the app
+                if (history.state && history.state.app && s.view !== 'dashboard' && history.length > 1) {
+                    history.back();
+                    return;
+                }
                 if (s.view === 'lesson') {
                     window.app.openCourse(s.currentCourseId, true);
                 } else if (s.view === 'syllabus') {
@@ -861,15 +933,18 @@
                 void m.offsetWidth;
                 m.classList.remove('opacity-0');
                 c.classList.remove('scale-95');
+                window.app.pushModalState();
                 
                 // A syllabus that was generated but not approved yet is kept until approved or discarded
                 window.app.hideModalLoading();
                 window.app.showCreateStep(window.app.state.pendingCourse ? 'review' : 'form');
             },
             
-            closeCreateModal: () => {
+            closeCreateModal: (fromHistory = false) => {
                 if(window.app.state.isGeneratingContent) return;
                 const m = document.getElementById('create-modal');
+                if (m.classList.contains('opacity-0')) return; // already closed / closing
+                if (!fromHistory) window.app.popModalState();
                 const c = document.getElementById('create-modal-content');
                 m.classList.add('opacity-0');
                 c.classList.add('scale-95');
@@ -902,7 +977,7 @@
                 document.getElementById('modal-error-icon').classList.remove('hidden');
                 document.getElementById('modal-title').textContent = "שגיאת תקשורת עם Gemini";
                 document.getElementById('modal-title').classList.add('text-red-600');
-                document.getElementById('modal-subtitle').textContent = `פרטי השגיאה: ${error.message}. נסה שוב.`;
+                document.getElementById('modal-subtitle').textContent = /נסה שוב/.test(error.message) ? error.message : `${error.message.replace(/[.\s]+$/, '')}. נסה שוב.`;
                 document.getElementById('modal-close-btn').classList.remove('hidden');
             },
 
@@ -1023,6 +1098,20 @@
                 return { text, finishReason };
             },
 
+            // Turn common API / network failures into a clear Hebrew message
+            friendlyError: (e) => {
+                const msg = (e && e.message) || '';
+                let text = null;
+                if (e instanceof TypeError || /failed to fetch|network/i.test(msg)) text = 'אין חיבור לאינטרנט, או שהשרת של Google לא זמין כרגע. בדוק את החיבור ונסה שוב.';
+                else if (/api key not valid|api_key_invalid/i.test(msg)) text = 'מפתח ה-API לא תקין. בדוק אותו בהגדרות (גלגל השיניים למעלה).';
+                else if (e.status === 429 || /quota|rate limit|resource.?exhausted/i.test(msg)) text = 'הגעת למגבלת השימוש של המפתח ב-Gemini. חכה כמה דקות ונסה שוב.';
+                else if (e.status === 503 || /overloaded|unavailable/i.test(msg)) text = 'השרתים של Gemini עמוסים כרגע. נסה שוב בעוד רגע.';
+                if (!text) return e;
+                const friendly = new Error(text);
+                friendly.status = e.status;
+                return friendly;
+            },
+
             // --- Gemini API Call ---
             // options: { schema, maxOutputTokens, onText (enables streaming), retries }
             callGemini: async (prompt, options = {}) => {
@@ -1120,12 +1209,15 @@
                                 break;
                             }
                             lastError = e;
-                            if ([400, 401, 403].includes(e.status)) throw e; // Bad key / unauthorized - fail immediately
+                            if ([400, 401, 403].includes(e.status)) throw window.app.friendlyError(e); // Bad key / unauthorized - fail immediately
+                            // No connection: other models won't help, so stop after this model's retries
+                            if (e instanceof TypeError && !navigator.onLine) throw window.app.friendlyError(e);
                             if (i < retries - 1) await new Promise(r => setTimeout(r, 1000));
                         }
                     }
+                    if (lastError instanceof TypeError) break; // network failure - same for every model
                 }
-                throw lastError || new Error("Unknown error");
+                throw window.app.friendlyError(lastError || new Error("Unknown error"));
             },
 
             // --- Course Generation ---
@@ -1271,6 +1363,7 @@ ${JSON.stringify(p.lessons)}
 
             approveSyllabus: () => {
                 const p = window.app.state.pendingCourse;
+                if (!p) return; // double tap
                 const newCourse = {
                     id: 'course_' + Date.now(),
                     topic: p.topic,
@@ -1291,7 +1384,7 @@ ${JSON.stringify(p.lessons)}
                 document.getElementById('create-course-form').reset();
                 window.app.applyCourseDefaults();
                 document.getElementById('review-feedback').value = '';
-                window.app.closeCreateModal();
+                window.app.closeCreateModal(true); // the course screen replaces the dialog's history entry
                 
                 window.app.showToast('הקורס נוצר בהצלחה!');
                 window.app.openCourse(newCourse.id);
@@ -1320,12 +1413,12 @@ ${JSON.stringify(p.lessons)}
                     
                     card.innerHTML = `
                         <div class="flex items-start justify-between mb-3">
-                            <h3 class="font-bold text-lg text-slate-800 line-clamp-2">${course.topic}</h3>
+                            <h3 class="font-bold text-lg text-slate-800 line-clamp-2">${window.app.escapeHtml(course.topic)}</h3>
                             <div class="w-8 h-8 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center shrink-0">
                                 <i class="fa-solid fa-book-bookmark"></i>
                             </div>
                         </div>
-                        <p class="text-xs text-slate-500 mb-4 line-clamp-1"><i class="fa-solid fa-stairs ml-1"></i> יעד: ${course.targetLevel}</p>
+                        <p class="text-xs text-slate-500 mb-4 line-clamp-1"><i class="fa-solid fa-stairs ml-1"></i> יעד: ${window.app.escapeHtml(course.targetLevel)}</p>
                         
                         <div class="mt-auto pt-4 border-t border-slate-50">
                             <div class="flex justify-between text-xs text-slate-600 mb-1 font-medium">
@@ -1369,14 +1462,14 @@ ${JSON.stringify(p.lessons)}
                 .replace(/"/g, '&quot;').replace(/'/g, '&#39;'),
 
             // keepScroll: re-render in place (e.g. back from a lesson) instead of starting at the top
-            openCourse: (courseId, keepScroll = false) => {
+            openCourse: (courseId, keepScroll = false, fromHistory = false) => {
                 window.app.state.currentCourseId = courseId;
                 const course = window.app.getCurrentCourse();
                 if (!course) return;
 
                 document.getElementById('syllabus-title').textContent = course.topic;
-                document.getElementById('syllabus-level').innerHTML = `<i class="fa-solid fa-stairs ml-1"></i> רמה מבוקשת: <b>${course.targetLevel}</b>`;
-                document.getElementById('syllabus-persona').innerHTML = `<i class="fa-solid fa-user-graduate ml-1"></i> סגנון: <b>${course.persona.split(' ')[0]}...</b>`;
+                document.getElementById('syllabus-level').innerHTML = `<i class="fa-solid fa-stairs ml-1"></i> רמה מבוקשת: <b>${window.app.escapeHtml(course.targetLevel)}</b>`;
+                document.getElementById('syllabus-persona').innerHTML = `<i class="fa-solid fa-user-graduate ml-1"></i> סגנון: <b>${window.app.escapeHtml(course.persona.split(' ')[0])}...</b>`;
                 document.getElementById('syllabus-progress-text').innerHTML = `<i class="fa-solid fa-chart-line ml-1"></i> הושלמו: <b>${course.progress}/${course.numLessons}</b>`;
 
                 const list = document.getElementById('lessons-list');
@@ -1412,8 +1505,8 @@ ${JSON.stringify(p.lessons)}
                     el.innerHTML = `
                         <div class="mt-1 w-6 flex justify-center shrink-0 text-lg">${icon}</div>
                         <div class="flex-1">
-                            <h4 class="font-bold text-slate-800 mb-1">שיעור ${index + 1}: ${lesson.title}</h4>
-                            <p class="text-sm text-slate-600">${lesson.summary}</p>
+                            <h4 class="font-bold text-slate-800 mb-1">שיעור ${index + 1}: ${window.app.escapeHtml(lesson.title)}</h4>
+                            <p class="text-sm text-slate-600">${window.app.escapeHtml(lesson.summary)}</p>
                         </div>
                         <div class="shrink-0 flex items-center justify-center">
                             ${btnHtml}
@@ -1423,7 +1516,7 @@ ${JSON.stringify(p.lessons)}
                 });
 
                 window.app.updateReminderBell(course);
-                window.app.navigate('syllabus');
+                window.app.navigate('syllabus', fromHistory);
                 // The browser keeps this container's old scroll position even while hidden, so reset it once visible
                 if (!keepScroll) {
                     document.getElementById('view-syllabus').scrollTop = 0;
@@ -1432,7 +1525,7 @@ ${JSON.stringify(p.lessons)}
             },
 
             // --- Lesson Handling ---
-            startLesson: async (lessonIndex) => {
+            startLesson: async (lessonIndex, fromHistory = false) => {
                 const course = window.app.getCurrentCourse();
                 const lesson = course.syllabus[lessonIndex];
                 window.app.state.currentLessonIndex = lessonIndex;
@@ -1452,12 +1545,12 @@ ${JSON.stringify(p.lessons)}
                             <i class="fa-solid fa-robot text-xs text-indigo-600"></i>
                         </div>
                         <div class="bg-white border border-slate-200 rounded-2xl rounded-tr-none p-3 text-sm text-slate-700 shadow-sm">
-                            היי! עכשיו קוראים את ${lesson.title}. אם משהו לא ברור, שאל אותי.
+                            היי! עכשיו קוראים את ${window.app.escapeHtml(lesson.title)}. אם משהו לא ברור, שאל אותי.
                         </div>
                     </div>
                 `;
 
-                window.app.navigate('lesson');
+                window.app.navigate('lesson', fromHistory);
                 document.getElementById('lesson-scroll-area').scrollTop = 0; // only works once the view is visible
                 window.app.showLessonLoading();
 
@@ -1494,6 +1587,31 @@ ${JSON.stringify(p.lessons)}
                 document.getElementById('lesson-retry-btn').classList.remove('hidden');
             },
 
+            // Lesson HTML comes from the model: drop anything that could restyle or script the app,
+            // and open links in a new tab instead of navigating away from the app
+            sanitizeHtml: (html) => {
+                const tpl = document.createElement('template'); // inert: nothing loads or runs while we clean it
+                tpl.innerHTML = html;
+                tpl.content.querySelectorAll('script, style, link, meta, base, iframe, frame, object, embed, form, input, button, textarea, select').forEach(el => el.remove());
+                tpl.content.querySelectorAll('*').forEach(el => {
+                    for (const attr of [...el.attributes]) {
+                        const name = attr.name.toLowerCase();
+                        if (name.startsWith('on') || ['style', 'class', 'id'].includes(name) ||
+                            (['href', 'src', 'xlink:href', 'action'].includes(name) && /^\s*(javascript|data):/i.test(attr.value))) {
+                            el.removeAttribute(attr.name);
+                        }
+                    }
+                    if (el.tagName === 'A') {
+                        el.setAttribute('target', '_blank');
+                        el.setAttribute('rel', 'noopener noreferrer');
+                    }
+                });
+                return tpl.innerHTML;
+            },
+
+            // DOMParser documents are inert (no image loads / handlers), unlike a detached <div>
+            htmlToText: (html) => new DOMParser().parseFromString(html, 'text/html').body.textContent.replace(/\s+/g, ' ').trim(),
+
             cleanLessonHtml: (text) => text.trim()
                 .replace(/^```(?:html)?\s*/i, '')
                 .replace(/\s*```\s*$/, '')
@@ -1504,7 +1622,7 @@ ${JSON.stringify(p.lessons)}
                 const html = window.app.cleanLessonHtml(text).replace(/<[^>]*$/, '');
                 if (!html) return;
                 document.getElementById('lesson-loading').classList.add('hidden');
-                document.getElementById('lesson-content').innerHTML = html;
+                document.getElementById('lesson-content').innerHTML = window.app.sanitizeHtml(html);
                 document.getElementById('lesson-streaming').classList.remove('hidden');
             },
 
@@ -1568,7 +1686,7 @@ ${JSON.stringify(p.lessons)}
                 const lessonData = course.syllabus[lessonIndex].contentData;
                 document.getElementById('lesson-loading').classList.add('hidden');
                 document.getElementById('lesson-streaming').classList.add('hidden');
-                document.getElementById('lesson-content').innerHTML = lessonData.content;
+                document.getElementById('lesson-content').innerHTML = window.app.sanitizeHtml(lessonData.content);
 
                 const isLast = lessonIndex + 1 >= course.syllabus.length;
                 document.getElementById('next-lesson-btn').innerHTML = isLast
@@ -1663,9 +1781,7 @@ ${JSON.stringify(p.lessons)}
                 window.app.generations[key] = true;
                 const lesson = course.syllabus[lessonIndex];
 
-                const tmp = document.createElement('div');
-                tmp.innerHTML = lesson.contentData.content;
-                const lessonText = tmp.textContent.replace(/\s+/g, ' ').substring(0, 15000);
+                const lessonText = window.app.htmlToText(lesson.contentData.content).substring(0, 15000);
 
                 const prompt = `לפניך שיעור בנושא '${lesson.title}' מתוך קורס על '${course.topic}'.
 חבר בוחן קצר של 3 שאלות אמריקאיות בעברית שבודקות הבנה של החומר בשיעור.
@@ -1759,9 +1875,7 @@ ${lessonText}
                 const lesson = course.syllabus[lessonIndex];
                 const gen = window.app.generations[window.app.lessonKey(course.id, lessonIndex)];
                 const lessonHtml = lesson.contentData ? lesson.contentData.content : (gen ? gen.text : '');
-                const tmp = document.createElement('div');
-                tmp.innerHTML = lessonHtml;
-                const lessonText = tmp.textContent.replace(/\s+/g, ' ').substring(0, 12000);
+                const lessonText = window.app.htmlToText(lessonHtml).substring(0, 12000);
 
                 const history = window.app.state.chatHistory.slice(-6)
                     .map(m => `${m.role === 'user' ? 'לומד' : 'מורה'}: ${m.text}`).join('\n');
