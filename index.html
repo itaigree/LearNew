@@ -65,6 +65,12 @@
         .lesson-content ul { list-style-type: disc; padding-right: 1.5rem; margin-bottom: 1rem; color: #334155; }
         .lesson-content li { margin-bottom: 0.5rem; }
         .lesson-content b, .lesson-content strong { color: #0f172a; font-weight: 600; }
+        .lesson-content ol { list-style-type: decimal; padding-right: 1.5rem; margin-bottom: 1rem; color: #334155; }
+        .lesson-content blockquote { border-right: 4px solid #bae6fd; background: #f0f9ff; padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 0.5rem; }
+        .lesson-content pre { direction: ltr; text-align: left; background: #0f172a; color: #e2e8f0; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin-bottom: 1rem; font-size: 0.875rem; }
+        .lesson-content code { font-family: ui-monospace, monospace; }
+        .lesson-content table { display: block; overflow-x: auto; border-collapse: collapse; margin-bottom: 1rem; }
+        .lesson-content th, .lesson-content td { border: 1px solid #e2e8f0; padding: 0.5rem 0.75rem; text-align: right; }
         
         /* Transitions */
         .fade-enter { opacity: 0; transform: translateY(10px); }
@@ -81,7 +87,7 @@
                 <div class="w-8 h-8 bg-brand-600 text-white rounded-lg flex items-center justify-center font-bold text-xl">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v11</span></h1>
+                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v15</span></h1>
             </div>
             
             <div id="nav-actions" class="flex items-center gap-4">
@@ -152,7 +158,7 @@
         <div id="view-lesson" class="hidden-view flex-1 flex flex-col md:flex-row overflow-hidden h-full">
             
             <!-- Main Content Area -->
-            <div class="flex-1 flex flex-col h-full bg-white relative">
+            <div class="flex-1 min-w-0 min-h-0 flex flex-col h-full bg-white relative">
                 <!-- Lesson Header -->
                 <div class="h-16 border-b border-slate-100 flex items-center px-6 justify-between shrink-0 bg-white">
                     <h2 id="lesson-current-title" class="font-bold text-lg text-slate-800 line-clamp-1"></h2>
@@ -174,31 +180,43 @@
                         <!-- API Content Here -->
                     </div>
 
+                    <div id="lesson-streaming" class="max-w-3xl mx-auto mt-6 hidden flex items-center gap-2 text-sm text-brand-600">
+                        <i class="fa-solid fa-pen-nib fa-fade"></i> הבינה המלאכותית ממשיכה לכתוב...
+                    </div>
+
                     <!-- Quiz Section -->
                     <div id="quiz-section" class="max-w-3xl mx-auto mt-12 pt-8 border-t border-slate-200 hidden">
-                        <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                            <i class="fa-solid fa-clipboard-check text-brand-600"></i> בחן את עצמך
-                        </h3>
-                        <p class="text-slate-600 mb-6 text-sm">כדי לעבור לשיעור הבא, עליך לענות נכונה על השאלות הבאות:</p>
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-clipboard-check text-brand-600"></i> בחן את עצמך <span class="text-sm font-normal text-slate-400">(רשות)</span>
+                            </h3>
+                            <button id="quiz-reset-btn" onclick="app.resetQuiz()" class="hidden text-xs text-slate-500 hover:text-brand-600"><i class="fa-solid fa-rotate-right ml-1"></i> נקה תשובות</button>
+                        </div>
+                        <p class="text-slate-600 mb-6 text-sm">הבוחן לא חובה ולא משפיע על ההתקדמות. בחרו תשובה כדי לראות אם צדקתם.</p>
                         
+                        <div id="quiz-status" class="hidden text-sm text-slate-500 flex items-center gap-2"></div>
                         <div id="quiz-container" class="space-y-8">
                             <!-- Questions injected here -->
                         </div>
+                    </div>
 
-                        <div class="mt-8 flex justify-end">
-                            <button id="check-quiz-btn" onclick="app.checkQuiz()" class="bg-brand-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-brand-700 transition-colors">
-                                בדיקת תשובות
-                            </button>
-                            <button id="next-lesson-btn" onclick="app.goToNextLesson()" class="hidden bg-green-500 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-600 transition-colors flex items-center gap-2">
-                                המשך לשיעור הבא <i class="fa-solid fa-arrow-left"></i>
-                            </button>
-                        </div>
+                    <div id="lesson-nav" class="max-w-3xl mx-auto mt-10 mb-4 pt-6 border-t border-slate-200 hidden flex flex-wrap justify-between items-center gap-3">
+                        <button onclick="app.goBack()" class="text-sm font-medium text-slate-600 hover:text-brand-600 transition-colors">
+                            <i class="fa-solid fa-list-ul ml-1"></i> חזרה לסילבוס
+                        </button>
+                        <button id="next-lesson-btn" onclick="app.completeLessonAndContinue()" class="bg-green-500 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-600 transition-colors flex items-center gap-2">
+                            סיימתי, לשיעור הבא <i class="fa-solid fa-arrow-left"></i>
+                        </button>
                     </div>
                 </div>
             </div>
 
             <!-- AI Tutor Sidebar -->
-            <div class="w-full md:w-80 lg:w-96 border-r border-slate-200 bg-slate-50 flex flex-col shrink-0 h-[40vh] md:h-auto">
+            <button onclick="app.openChat()" class="md:hidden fixed bottom-5 left-5 z-20 w-14 h-14 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg flex items-center justify-center text-xl" title="שאל את המורה">
+                <i class="fa-solid fa-comments"></i>
+            </button>
+
+            <div id="chat-panel" class="fixed inset-x-0 bottom-0 z-30 h-[70vh] rounded-t-2xl shadow-2xl translate-y-full transition-transform duration-300 md:static md:z-auto md:h-auto md:w-80 lg:w-96 md:rounded-none md:shadow-none md:translate-y-0 border-r border-slate-200 bg-slate-50 flex flex-col shrink-0 overflow-hidden">
                 <div class="p-4 border-b border-slate-200 bg-white flex items-center gap-3">
                     <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg">
                         <i class="fa-solid fa-robot"></i>
@@ -207,6 +225,9 @@
                         <h3 class="font-bold text-slate-800 text-sm">מורה פרטי אישי</h3>
                         <p class="text-xs text-slate-500">שאלות על הטקסט? אני כאן.</p>
                     </div>
+                    <button onclick="app.closeChat()" class="md:hidden mr-auto text-slate-400 hover:text-slate-600 p-2" title="סגור">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
                 </div>
                 
                 <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4">
@@ -366,6 +387,12 @@
                 const stored = localStorage.getItem('smartlearn_courses');
                 if (stored) {
                     window.app.state.courses = JSON.parse(stored);
+                    window.app.state.courses.forEach(course => {
+                        course.syllabus.forEach((l, i) => {
+                            if (l.completed === undefined) l.completed = i < (course.progress || 0);
+                        });
+                        window.app.updateProgress(course);
+                    });
                 } else {
                     window.app.state.courses = [];
                 }
@@ -509,11 +536,22 @@
             workingModel: null,
             discoveredModels: null,
             unavailableModels: new Set(),
+            noThinkingConfig: new Set(),
+
+            // Fallback list used only when ListModels fails - fast "flash" models first
+            fallbackModels: ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-3.1-flash-lite', 'gemini-3.1-pro-preview'],
+
+            // Lower is better: flash first (fast), then flash-lite, then pro (slow); newer versions first
+            rankModel: (name) => {
+                const version = parseFloat((name.match(/^gemini-(\d+(?:\.\d+)?)/) || [])[1] || 0);
+                const tier = /flash-lite/.test(name) ? 1 : /flash/.test(name) ? 0 : /pro/.test(name) ? 2 : 3;
+                return tier * 100 - version;
+            },
 
             getAvailableModels: async (apiKey) => {
                 const usable = (list) => list.filter(m => !window.app.unavailableModels.has(m));
                 if (window.app.workingModel) {
-                    const rest = window.app.discoveredModels || ['gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-2.5-flash', 'gemini-3.1-flash-lite'];
+                    const rest = window.app.discoveredModels || window.app.fallbackModels;
                     return usable([window.app.workingModel, ...rest.filter(m => m !== window.app.workingModel)]);
                 }
                 try {
@@ -521,21 +559,12 @@
                     if (res.ok) {
                         const data = await res.json();
                         if (data.models && Array.isArray(data.models)) {
-                            const available = data.models
+                            const ordered = data.models
                                 .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
-                                .map(m => m.name.replace(/^models\//, ''));
-
-                            const priority = [
-                                'gemini-3.8-flash',
-                                'gemini-3.1-pro-preview',
-                                'gemini-2.5-flash',
-                                'gemini-3.1-flash-lite'
-                            ];
-
-                            const ordered = priority.filter(p => available.includes(p));
-                            for (const m of available) {
-                                if (!ordered.includes(m)) ordered.push(m);
-                            }
+                                .map(m => m.name.replace(/^models\//, ''))
+                                // Text models only (skip TTS / image / audio / live / embedding variants)
+                                .filter(m => m.startsWith('gemini-') && !/(tts|image|audio|live|embedding|computer-use|robotics|native)/.test(m))
+                                .sort((a, b) => window.app.rankModel(a) - window.app.rankModel(b));
 
                             if (ordered.length > 0) {
                                 console.log("Gemini ListModels successfully discovered available models:", ordered);
@@ -547,11 +576,66 @@
                 } catch (err) {
                     console.warn("Could not retrieve ListModels dynamically, using fallback list:", err);
                 }
-                return usable(['gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-2.5-flash', 'gemini-3.1-flash-lite']);
+                return usable(window.app.fallbackModels);
+            },
+
+            // Keep "thinking" short - it is the main source of latency and adds nothing for lesson writing
+            thinkingConfigFor: (model) => {
+                if (window.app.noThinkingConfig.has(model)) return null;
+                if (/^gemini-3/.test(model)) return { thinkingLevel: /flash/.test(model) ? 'minimal' : 'low' };
+                if (/^gemini-2\.5-flash/.test(model)) return { thinkingBudget: 0 };
+                if (/^gemini-2\.5-pro/.test(model)) return { thinkingBudget: 128 };
+                return null;
+            },
+
+            // Reads a streamGenerateContent (SSE) response, calling onText with the full text so far
+            readStream: async (response, onText) => {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let text = '';
+                let finishReason = null;
+                let gotCandidate = false;
+
+                const handleEvent = (json) => {
+                    const result = JSON.parse(json);
+                    if (result.error) {
+                        const apiErr = new Error(result.error.message);
+                        apiErr.status = result.error.code;
+                        throw apiErr;
+                    }
+                    const candidate = result.candidates && result.candidates[0];
+                    if (!candidate) return;
+                    gotCandidate = true;
+                    if (candidate.finishReason) finishReason = candidate.finishReason;
+                    const parts = candidate.content?.parts || [];
+                    const chunk = parts.filter(p => !p.thought).map(p => p.text || '').join('');
+                    if (chunk) {
+                        text += chunk;
+                        onText(text);
+                    }
+                };
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+                    for (const line of lines) {
+                        if (line.startsWith('data:')) handleEvent(line.slice(5).trim());
+                    }
+                }
+                if (buffer.startsWith('data:')) handleEvent(buffer.slice(5).trim());
+
+                if (!gotCandidate) throw new Error("No candidates returned from Gemini.");
+                return { text, finishReason };
             },
 
             // --- Gemini API Call ---
-            callGemini: async (prompt, schema = null, retries = 2, maxOutputTokens = 8192) => {
+            // options: { schema, maxOutputTokens, onText (enables streaming), retries }
+            callGemini: async (prompt, options = {}) => {
+                const { schema = null, maxOutputTokens = 8192, onText = null, retries = 2 } = options;
                 const apiKey = window.app.getApiKey();
                 if (!apiKey) {
                     window.app.openSettingsModal(true);
@@ -559,39 +643,50 @@
                 }
 
                 const models = await window.app.getAvailableModels(apiKey);
-                const payload = {
-                    contents: [{ role: 'user', parts: [{ text: prompt }] }]
-                };
 
-                payload.generationConfig = {
-                    temperature: 0.7,
-                    maxOutputTokens
+                const buildPayload = (model) => {
+                    const payload = {
+                        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                        generationConfig: { temperature: 0.7, maxOutputTokens }
+                    };
+                    const thinkingConfig = window.app.thinkingConfigFor(model);
+                    if (thinkingConfig) payload.generationConfig.thinkingConfig = thinkingConfig;
+                    if (schema) {
+                        payload.generationConfig.responseMimeType = "application/json";
+                        payload.generationConfig.responseSchema = schema;
+                    }
+                    return payload;
                 };
-
-                if (schema) {
-                    payload.generationConfig.responseMimeType = "application/json";
-                    payload.generationConfig.responseSchema = schema;
-                }
 
                 let lastError = null;
                 for (const model of models) {
-                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                    const apiUrl = onText
+                        ? `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`
+                        : `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
                     for (let i = 0; i < retries; i++) {
                         try {
                             const response = await fetch(apiUrl, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(payload)
+                                body: JSON.stringify(buildPayload(model))
                             });
-                            
+
+                            if (onText && response.ok) {
+                                const { text, finishReason } = await window.app.readStream(response, onText);
+                                window.app.workingModel = model; // Cache working model for future calls
+                                if (finishReason === 'MAX_TOKENS') console.warn(`Streamed answer from ${model} was cut at MAX_TOKENS`);
+                                if (!text) throw new Error("Gemini returned an empty answer.");
+                                return text;
+                            }
+
                             const textData = await response.text();
-                            
+
                             if (textData.trim().startsWith('<')) {
                                 throw new Error(`השרת החזיר דף אינטרנט במקום נתונים. ודא שהמודל נתמך במפתח שלך.`);
                             }
 
                             const result = JSON.parse(textData);
-                            
+
                             if (result.error) {
                                 const apiErr = new Error(result.error.message);
                                 apiErr.status = result.error.code;
@@ -619,6 +714,12 @@
                             }
                         } catch (e) {
                             console.warn(`Gemini API Error (${model}, Attempt ${i+1}):`, e);
+                            // This model rejected our thinking settings - retry it without them
+                            if (e.status === 400 && /thinking/i.test(e.message || '') && !window.app.noThinkingConfig.has(model)) {
+                                window.app.noThinkingConfig.add(model);
+                                i--;
+                                continue;
+                            }
                             // Model retired / not offered to this key - skip it, and don't let it mask a more meaningful earlier error
                             const modelUnavailable = e.status === 404 || /no longer available|not found|is not supported/i.test(e.message || '');
                             if (modelUnavailable) {
@@ -698,7 +799,7 @@
                 };
 
                 try {
-                    const syllabusData = await window.app.callGemini(prompt, syllabusSchema);
+                    const syllabusData = await window.app.callGemini(prompt, { schema: syllabusSchema });
                     
                     if(!syllabusData.lessons || syllabusData.lessons.length === 0) {
                         throw new Error("הסילבוס שהוחזר ריק");
@@ -714,7 +815,7 @@
                         targetLevel,
                         numLessons: actualLessonCount,
                         persona,
-                        syllabus: syllabusData.lessons.map(l => ({ ...l, contentData: null })), 
+                        syllabus: syllabusData.lessons.map(l => ({ ...l, contentData: null, completed: false })), 
                         progress: 0,
                         createdAt: Date.now()
                     };
@@ -797,45 +898,64 @@
                 }
             },
 
+            // In-flight generations, keyed by lessonKey (lesson text) or lessonKey + ':quiz'
+            generations: {},
+
+            lessonKey: (courseId, index) => `${courseId}:${index}`,
+
+            isViewingLesson: (courseId, index) => {
+                const s = window.app.state;
+                return s.view === 'lesson' && s.currentCourseId === courseId && s.currentLessonIndex === index;
+            },
+
+            updateProgress: (course) => {
+                course.progress = course.syllabus.filter(l => l.completed).length;
+            },
+
+            escapeHtml: (text) => String(text ?? '')
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;'),
+
             openCourse: (courseId) => {
                 window.app.state.currentCourseId = courseId;
                 const course = window.app.getCurrentCourse();
                 if (!course) return;
-                
+
                 document.getElementById('syllabus-title').textContent = course.topic;
                 document.getElementById('syllabus-level').innerHTML = `<i class="fa-solid fa-stairs ml-1"></i> רמה מבוקשת: <b>${course.targetLevel}</b>`;
                 document.getElementById('syllabus-persona').innerHTML = `<i class="fa-solid fa-user-graduate ml-1"></i> סגנון: <b>${course.persona.split(' ')[0]}...</b>`;
                 document.getElementById('syllabus-progress-text').innerHTML = `<i class="fa-solid fa-chart-line ml-1"></i> הושלמו: <b>${course.progress}/${course.numLessons}</b>`;
-                
+
                 const list = document.getElementById('lessons-list');
                 list.innerHTML = '';
-                
+
+                // Every lesson is open - it can be generated and read in any order
                 course.syllabus.forEach((lesson, index) => {
-                    const isCompleted = index < course.progress;
-                    const isLocked = index > course.progress;
-                    const isActive = index === course.progress;
-                    
-                    let icon = '<i class="fa-solid fa-lock text-slate-300"></i>';
-                    let statusClasses = 'bg-white opacity-60';
-                    let btnHtml = '';
-                    
-                    if (isCompleted) {
+                    const isGenerating = !!window.app.generations[window.app.lessonKey(course.id, index)];
+                    let icon, statusClasses, btnHtml;
+
+                    if (lesson.completed) {
                         icon = '<i class="fa-solid fa-circle-check text-green-500"></i>';
-                        statusClasses = 'bg-slate-50 hover:bg-slate-100 cursor-pointer';
+                        statusClasses = 'bg-slate-50 hover:bg-slate-100';
                         btnHtml = '<span class="text-xs font-medium text-slate-500">חזור על השיעור</span>';
-                    } else if (isActive) {
-                        icon = '<i class="fa-solid fa-play text-brand-600"></i>';
-                        statusClasses = 'bg-brand-50 border-r-4 border-brand-500 cursor-pointer';
-                        btnHtml = '<button class="text-xs font-bold bg-brand-600 text-white px-3 py-1 rounded-md">התחל שיעור</button>';
+                    } else if (lesson.contentData) {
+                        icon = '<i class="fa-solid fa-book-open text-brand-600"></i>';
+                        statusClasses = 'bg-white hover:bg-brand-50';
+                        btnHtml = '<button class="text-xs font-bold bg-brand-600 text-white px-3 py-1 rounded-md">המשך לקרוא</button>';
+                    } else if (isGenerating) {
+                        icon = '<i class="fa-solid fa-circle-notch fa-spin text-brand-500"></i>';
+                        statusClasses = 'bg-white hover:bg-brand-50';
+                        btnHtml = '<span class="text-xs font-medium text-brand-600">נכתב עכשיו...</span>';
+                    } else {
+                        icon = '<i class="fa-solid fa-wand-magic-sparkles text-slate-400"></i>';
+                        statusClasses = 'bg-white hover:bg-brand-50';
+                        btnHtml = '<button class="text-xs font-bold border border-brand-600 text-brand-600 px-3 py-1 rounded-md">צור שיעור</button>';
                     }
-                    
+
                     const el = document.createElement('div');
-                    el.className = `p-5 flex items-start gap-4 transition-colors ${statusClasses}`;
-                    
-                    if (!isLocked) {
-                        el.onclick = () => window.app.startLesson(index);
-                    }
-                    
+                    el.className = `p-5 flex items-start gap-4 transition-colors cursor-pointer ${statusClasses}`;
+                    el.onclick = () => window.app.startLesson(index);
+
                     el.innerHTML = `
                         <div class="mt-1 w-6 flex justify-center shrink-0 text-lg">${icon}</div>
                         <div class="flex-1">
@@ -848,54 +968,95 @@
                     `;
                     list.appendChild(el);
                 });
-                
+
                 window.app.navigate('syllabus');
             },
 
             // --- Lesson Handling ---
             startLesson: async (lessonIndex) => {
                 const course = window.app.getCurrentCourse();
+                const lesson = course.syllabus[lessonIndex];
                 window.app.state.currentLessonIndex = lessonIndex;
-                
-                document.getElementById('lesson-current-title').textContent = `שיעור ${lessonIndex + 1}: ${course.syllabus[lessonIndex].title}`;
+
+                document.getElementById('lesson-current-title').textContent = `שיעור ${lessonIndex + 1}: ${lesson.title}`;
                 document.getElementById('lesson-counter').textContent = `שיעור ${lessonIndex + 1} מתוך ${course.numLessons}`;
                 document.getElementById('lesson-content').innerHTML = '';
+                document.getElementById('lesson-streaming').classList.add('hidden');
                 document.getElementById('quiz-section').classList.add('hidden');
-                
+                document.getElementById('lesson-nav').classList.add('hidden');
+                document.getElementById('lesson-scroll-area').scrollTop = 0;
+
                 window.app.state.chatHistory = [];
+                window.app.closeChat();
                 document.getElementById('chat-messages').innerHTML = `
                     <div class="flex items-start gap-2">
                         <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
                             <i class="fa-solid fa-robot text-xs text-indigo-600"></i>
                         </div>
                         <div class="bg-white border border-slate-200 rounded-2xl rounded-tr-none p-3 text-sm text-slate-700 shadow-sm">
-                            היי! עכשיו קוראים את ${course.syllabus[lessonIndex].title}. אם משהו לא ברור, שאל אותי.
+                            היי! עכשיו קוראים את ${lesson.title}. אם משהו לא ברור, שאל אותי.
                         </div>
                     </div>
                 `;
-                
-                window.app.navigate('lesson');
-                
-                // Reset loading UI
-                document.getElementById('lesson-loading').classList.remove('hidden');
-                document.getElementById('lesson-loading-spinner').classList.remove('hidden');
-                document.getElementById('lesson-loading-icon').classList.add('hidden');
-                document.getElementById('lesson-loading-title').textContent = "הבינה המלאכותית כותבת את השיעור...";
-                document.getElementById('lesson-loading-title').classList.remove('text-red-600');
-                document.getElementById('lesson-loading-text').textContent = "מתאים את התוכן לסגנון הלמידה שלך, בונה שאלות בחן ומייצר תזכורות משיעורים קודמים.";
-                document.getElementById('lesson-retry-btn').classList.add('hidden');
 
-                if (course.syllabus[lessonIndex].contentData) {
-                    window.app.renderLesson(course.syllabus[lessonIndex].contentData);
+                window.app.navigate('lesson');
+                window.app.showLessonLoading();
+
+                const gen = window.app.generations[window.app.lessonKey(course.id, lessonIndex)];
+                if (lesson.contentData) {
+                    window.app.renderLesson(course, lessonIndex);
+                } else if (gen) {
+                    // Already being written (e.g. user left and came back) - just re-attach to the stream
+                    if (gen.text) window.app.renderStreamingContent(gen.text);
                 } else {
                     await window.app.generateLesson(lessonIndex, course);
                 }
             },
 
+            showLessonLoading: () => {
+                document.getElementById('lesson-loading').classList.remove('hidden');
+                document.getElementById('lesson-loading-spinner').classList.remove('hidden');
+                document.getElementById('lesson-loading-icon').classList.add('hidden');
+                document.getElementById('lesson-loading-title').textContent = "הבינה המלאכותית כותבת את השיעור...";
+                document.getElementById('lesson-loading-title').classList.remove('text-red-600');
+                document.getElementById('lesson-loading-text').textContent = "השיעור יתחיל להופיע כאן תוך כמה שניות וימשיך להיכתב תוך כדי קריאה.";
+                document.getElementById('lesson-retry-btn').classList.add('hidden');
+            },
+
+            showLessonError: (error) => {
+                document.getElementById('lesson-content').innerHTML = '';
+                document.getElementById('lesson-streaming').classList.add('hidden');
+                document.getElementById('lesson-loading').classList.remove('hidden');
+                document.getElementById('lesson-loading-spinner').classList.add('hidden');
+                document.getElementById('lesson-loading-icon').classList.remove('hidden');
+                document.getElementById('lesson-loading-title').textContent = "אירעה שגיאה ביצירת השיעור";
+                document.getElementById('lesson-loading-title').classList.add('text-red-600');
+                document.getElementById('lesson-loading-text').textContent = `פרטים: ${error.message}`;
+                document.getElementById('lesson-retry-btn').classList.remove('hidden');
+            },
+
+            cleanLessonHtml: (text) => text.trim()
+                .replace(/^```(?:html)?\s*/i, '')
+                .replace(/\s*```\s*$/, '')
+                .trim(),
+
+            renderStreamingContent: (text) => {
+                // Drop a half-written tag at the end so it doesn't flash as raw text
+                const html = window.app.cleanLessonHtml(text).replace(/<[^>]*$/, '');
+                if (!html) return;
+                document.getElementById('lesson-loading').classList.add('hidden');
+                document.getElementById('lesson-content').innerHTML = html;
+                document.getElementById('lesson-streaming').classList.remove('hidden');
+            },
+
             generateLesson: async (lessonIndex, course) => {
+                const key = window.app.lessonKey(course.id, lessonIndex);
+                const gen = { text: '' };
+                window.app.generations[key] = gen;
+
                 const currentLesson = course.syllabus[lessonIndex];
                 const fullSyllabusJson = JSON.stringify(course.syllabus.map(s => ({title: s.title, summary: s.summary})));
-                
+
                 const prompt = `כתוב את שיעור מספר ${lessonIndex + 1} מתוך ${course.numLessons} בקורס בנושא '${course.topic}'.
 כותרת השיעור הנוכחי: '${currentLesson.title}'.
 סגנון למידה מבוקש: '${course.persona}'.
@@ -905,218 +1066,289 @@
 1. ${lessonIndex > 0 ? "התחל בפסקה קצרה של חזרה על מושג משיעורים קודמים." : "התחל ביצירת סקרנות ועניין בנושא."}
 2. כתוב שיעור ארוך, מקיף ומפורט מאוד (באורך של כ-10 דקות קריאה, לפחות 1500 מילים).
 3. תן הרחבות, מקרי בוחן, דוגמאות, וחלק את הטקסט עם תתי-כותרות.
-4. השתמש בתגיות HTML בסיסיות (h2, h3, p, ul, li, b) לעיצוב הטקסט ב-content.
-5. חבר בוחן קצר של 3 שאלות אמריקאיות כדי לבדוק הבנה.`;
+4. החזר HTML בלבד, עם תגיות בסיסיות בלבד (h2, h3, p, ul, ol, li, b, strong, em, blockquote, pre, code, table). בלי Markdown, בלי בלוק קוד עוטף (\`\`\`), בלי תגיות html/head/body ובלי כותרת h1.
+5. אל תכלול בוחן או שאלות לתרגול בסוף השיעור - הבוחן נוצר בנפרד.`;
 
-                const lessonSchema = {
+                let renderPending = false;
+                const onText = (text) => {
+                    gen.text = text;
+                    if (renderPending) return;
+                    renderPending = true;
+                    requestAnimationFrame(() => {
+                        renderPending = false;
+                        if (window.app.isViewingLesson(course.id, lessonIndex)) window.app.renderStreamingContent(gen.text);
+                    });
+                };
+
+                try {
+                    const raw = await window.app.callGemini(prompt, { maxOutputTokens: 32768, onText });
+                    const content = window.app.cleanLessonHtml(raw);
+                    if (!content) throw new Error("השיעור שהתקבל ריק");
+
+                    currentLesson.contentData = { content, quiz: null };
+                    window.app.saveCoursesToStorage();
+                    delete window.app.generations[key];
+
+                    if (window.app.isViewingLesson(course.id, lessonIndex)) {
+                        window.app.renderLesson(course, lessonIndex);
+                    } else {
+                        window.app.showToast(`שיעור ${lessonIndex + 1} מוכן!`);
+                        const s = window.app.state;
+                        if (s.view === 'syllabus' && s.currentCourseId === course.id) window.app.openCourse(course.id);
+                    }
+                } catch(error) {
+                    delete window.app.generations[key];
+                    console.error("Lesson generation failed", error);
+                    if (window.app.isViewingLesson(course.id, lessonIndex)) window.app.showLessonError(error);
+                }
+            },
+
+            renderLesson: (course, lessonIndex) => {
+                const lessonData = course.syllabus[lessonIndex].contentData;
+                document.getElementById('lesson-loading').classList.add('hidden');
+                document.getElementById('lesson-streaming').classList.add('hidden');
+                document.getElementById('lesson-content').innerHTML = lessonData.content;
+
+                const isLast = lessonIndex + 1 >= course.syllabus.length;
+                document.getElementById('next-lesson-btn').innerHTML = isLast
+                    ? `סיימתי את הקורס <i class="fa-solid fa-trophy"></i>`
+                    : `סיימתי, לשיעור הבא <i class="fa-solid fa-arrow-left"></i>`;
+                document.getElementById('lesson-nav').classList.remove('hidden');
+
+                window.app.renderQuizSection(course, lessonIndex);
+            },
+
+            // --- Optional Quiz ---
+            validQuiz: (quiz) => (Array.isArray(quiz) ? quiz : []).filter(q =>
+                q && q.question && Array.isArray(q.options) && q.options.length >= 2 &&
+                Number.isInteger(q.correctIndex) && q.correctIndex >= 0 && q.correctIndex < q.options.length),
+
+            renderQuizSection: (course, lessonIndex) => {
+                const lessonData = course.syllabus[lessonIndex].contentData;
+                const container = document.getElementById('quiz-container');
+                const status = document.getElementById('quiz-status');
+                document.getElementById('quiz-section').classList.remove('hidden');
+                container.innerHTML = '';
+
+                const quiz = window.app.validQuiz(lessonData.quiz);
+                if (quiz.length === 0) {
+                    status.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-brand-500"></i> מכין שאלות לבוחן...';
+                    status.classList.remove('hidden');
+                    document.getElementById('quiz-reset-btn').classList.add('hidden');
+                    if (!window.app.generations[window.app.lessonKey(course.id, lessonIndex) + ':quiz']) {
+                        window.app.generateQuiz(course, lessonIndex);
+                    }
+                    return;
+                }
+
+                status.classList.add('hidden');
+                document.getElementById('quiz-reset-btn').classList.remove('hidden');
+                const esc = window.app.escapeHtml;
+                quiz.forEach((q, qIndex) => {
+                    const optionsHtml = q.options.map((opt, optIndex) => `
+                        <button type="button" id="q${qIndex}_opt${optIndex}" onclick="app.answerQuiz(${qIndex}, ${optIndex})"
+                            class="quiz-option-${qIndex} w-full text-right flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-white hover:bg-brand-50 hover:border-brand-300 transition-colors mb-2 text-sm text-slate-700 disabled:cursor-default">
+                            <span class="w-6 h-6 rounded-full border border-slate-300 flex items-center justify-center text-xs shrink-0">${optIndex + 1}</span>
+                            <span>${esc(opt)}</span>
+                        </button>
+                    `).join('');
+
+                    const qDiv = document.createElement('div');
+                    qDiv.className = 'bg-slate-50 border border-slate-200 rounded-xl p-5';
+                    qDiv.innerHTML = `
+                        <h4 class="font-bold text-slate-800 mb-4">${qIndex + 1}. ${esc(q.question)}</h4>
+                        <div>${optionsHtml}</div>
+                        <p id="feedback_${qIndex}" class="text-sm mt-3 hidden"></p>
+                    `;
+                    container.appendChild(qDiv);
+                });
+            },
+
+            answerQuiz: (qIndex, optIndex) => {
+                const course = window.app.getCurrentCourse();
+                const quiz = window.app.validQuiz(course.syllabus[window.app.state.currentLessonIndex].contentData.quiz);
+                const q = quiz[qIndex];
+                if (!q) return;
+                const isCorrect = optIndex === q.correctIndex;
+
+                document.querySelectorAll(`.quiz-option-${qIndex}`).forEach(btn => {
+                    btn.disabled = true;
+                    btn.classList.remove('hover:bg-brand-50', 'hover:border-brand-300');
+                });
+                // Base white/slate classes win over green/red in Tailwind's CSS order, so swap them out
+                const mark = (i, ...cls) => {
+                    const btn = document.getElementById(`q${qIndex}_opt${i}`);
+                    btn.classList.remove('bg-white', 'border-slate-200');
+                    btn.classList.add(...cls);
+                };
+                mark(q.correctIndex, 'border-green-400', 'bg-green-50');
+                if (!isCorrect) mark(optIndex, 'border-red-400', 'bg-red-50');
+
+                const feedback = document.getElementById(`feedback_${qIndex}`);
+                const explanation = q.explanation ? ` ${window.app.escapeHtml(q.explanation)}` : '';
+                feedback.innerHTML = isCorrect
+                    ? `<b class="text-green-600"><i class="fa-solid fa-check ml-1"></i>צדקת!</b>${explanation}`
+                    : `<b class="text-red-500"><i class="fa-solid fa-xmark ml-1"></i>לא מדויק - התשובה הנכונה מסומנת בירוק.</b>${explanation}`;
+                feedback.classList.remove('hidden');
+                feedback.classList.add('text-slate-600');
+            },
+
+            resetQuiz: () => {
+                window.app.renderQuizSection(window.app.getCurrentCourse(), window.app.state.currentLessonIndex);
+            },
+
+            generateQuiz: async (course, lessonIndex) => {
+                const key = window.app.lessonKey(course.id, lessonIndex) + ':quiz';
+                window.app.generations[key] = true;
+                const lesson = course.syllabus[lessonIndex];
+
+                const tmp = document.createElement('div');
+                tmp.innerHTML = lesson.contentData.content;
+                const lessonText = tmp.textContent.replace(/\s+/g, ' ').substring(0, 15000);
+
+                const prompt = `לפניך שיעור בנושא '${lesson.title}' מתוך קורס על '${course.topic}'.
+חבר בוחן קצר של 3 שאלות אמריקאיות בעברית שבודקות הבנה של החומר בשיעור.
+לכל שאלה: 4 אפשרויות, אינדקס התשובה הנכונה (מתחיל מ-0), והסבר קצר (משפט אחד) למה זו התשובה הנכונה.
+
+טקסט השיעור:
+"""
+${lessonText}
+"""`;
+
+                const quizSchema = {
                     type: "OBJECT",
                     properties: {
-                        content: { type: "STRING" },
-                        quiz: {
+                        questions: {
                             type: "ARRAY",
                             items: {
                                 type: "OBJECT",
                                 properties: {
                                     question: { type: "STRING" },
-                                    options: {
-                                        type: "ARRAY",
-                                        items: { type: "STRING" }
-                                    },
-                                    correctIndex: { type: "INTEGER" }
-                                }
+                                    options: { type: "ARRAY", items: { type: "STRING" } },
+                                    correctIndex: { type: "INTEGER" },
+                                    explanation: { type: "STRING" }
+                                },
+                                required: ["question", "options", "correctIndex", "explanation"]
                             }
                         }
-                    }
+                    },
+                    required: ["questions"]
                 };
 
+                let failed = false;
                 try {
-                    const lessonData = await window.app.callGemini(prompt, lessonSchema, 2, 32768);
-                    if(!lessonData.content || !lessonData.quiz) throw new Error("Invalid format");
-
-                    course.syllabus[lessonIndex].contentData = lessonData;
+                    const result = await window.app.callGemini(prompt, { schema: quizSchema, maxOutputTokens: 4096 });
+                    const quiz = window.app.validQuiz(result.questions);
+                    if (quiz.length === 0) throw new Error("Empty quiz");
+                    lesson.contentData.quiz = quiz;
                     window.app.saveCoursesToStorage();
-                    window.app.renderLesson(lessonData);
-                    
-                } catch(error) {
-                    console.error("Lesson generation failed", error);
-                    document.getElementById('lesson-loading-spinner').classList.add('hidden');
-                    document.getElementById('lesson-loading-icon').classList.remove('hidden');
-                    document.getElementById('lesson-loading-title').textContent = "אירעה שגיאה ביצירת השיעור";
-                    document.getElementById('lesson-loading-title').classList.add('text-red-600');
-                    document.getElementById('lesson-loading-text').textContent = `פרטים: ${error.message}`;
-                    document.getElementById('lesson-retry-btn').classList.remove('hidden');
+                } catch (error) {
+                    console.error("Quiz generation failed", error);
+                    failed = true;
                 }
-            },
+                delete window.app.generations[key];
 
-            renderLesson: (lessonData) => {
-                document.getElementById('lesson-loading').classList.add('hidden');
-                
-                const contentDiv = document.getElementById('lesson-content');
-                contentDiv.innerHTML = lessonData.content;
-                
-                const quizContainer = document.getElementById('quiz-container');
-                quizContainer.innerHTML = '';
-                
-                lessonData.quiz.forEach((q, qIndex) => {
-                    const qDiv = document.createElement('div');
-                    qDiv.className = 'bg-slate-50 border border-slate-200 rounded-xl p-5';
-                    
-                    let optionsHtml = '';
-                    q.options.forEach((opt, optIndex) => {
-                        optionsHtml += `
-                            <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-brand-50 hover:border-brand-300 transition-colors mb-2 quiz-option-${qIndex}">
-                                <input type="radio" name="question_${qIndex}" value="${optIndex}" class="w-4 h-4 text-brand-600 border-slate-300 focus:ring-brand-500">
-                                <span class="text-sm text-slate-700">${opt}</span>
-                            </label>
-                        `;
-                    });
-                    
-                    qDiv.innerHTML = `
-                        <h4 class="font-bold text-slate-800 mb-4">${qIndex + 1}. ${q.question}</h4>
-                        <div class="options-container" id="opts_${qIndex}">
-                            ${optionsHtml}
-                        </div>
-                        <p id="feedback_${qIndex}" class="text-sm font-bold mt-3 hidden"></p>
-                    `;
-                    quizContainer.appendChild(qDiv);
-                });
-                
-                document.getElementById('quiz-section').classList.remove('hidden');
-                
-                document.getElementById('check-quiz-btn').classList.remove('hidden');
-                document.getElementById('next-lesson-btn').classList.add('hidden');
-                
-                document.getElementById('lesson-scroll-area').scrollTop = 0;
-            },
-
-            checkQuiz: () => {
-                const course = window.app.getCurrentCourse();
-                const lessonData = course.syllabus[window.app.state.currentLessonIndex].contentData;
-                let allCorrect = true;
-                
-                lessonData.quiz.forEach((q, qIndex) => {
-                    const selected = document.querySelector(`input[name="question_${qIndex}"]:checked`);
-                    const feedback = document.getElementById(`feedback_${qIndex}`);
-                    feedback.classList.remove('hidden', 'text-green-600', 'text-red-500');
-                    
-                    document.querySelectorAll(`.quiz-option-${qIndex}`).forEach(el => {
-                        el.classList.remove('border-red-400', 'bg-red-50', 'border-green-400', 'bg-green-50');
-                    });
-                    
-                    if (!selected) {
-                        allCorrect = false;
-                        feedback.textContent = 'אנא בחר תשובה.';
-                        feedback.classList.add('text-red-500');
-                        return;
-                    }
-                    
-                    const selectedVal = parseInt(selected.value);
-                    const isCorrect = selectedVal === q.correctIndex;
-                    
-                    if (!isCorrect) {
-                        allCorrect = false;
-                        selected.closest('label').classList.add('border-red-400', 'bg-red-50');
-                        feedback.textContent = 'תשובה שגויה, נסה שוב.';
-                        feedback.classList.add('text-red-500');
-                    } else {
-                        selected.closest('label').classList.add('border-green-400', 'bg-green-50');
-                        feedback.textContent = 'תשובה נכונה כל הכבוד!';
-                        feedback.classList.add('text-green-600');
-                    }
-                });
-                
-                if (allCorrect) {
-                    window.app.handleQuizPassed();
-                }
-            },
-
-            handleQuizPassed: () => {
-                document.getElementById('check-quiz-btn').classList.add('hidden');
-                
-                const course = window.app.getCurrentCourse();
-                const cIndex = window.app.state.currentLessonIndex;
-                
-                if (cIndex === course.progress) {
-                    course.progress += 1;
-                    window.app.saveCoursesToStorage();
-                }
-                
-                if (cIndex + 1 < course.numLessons) {
-                    document.getElementById('next-lesson-btn').classList.remove('hidden');
-                    document.getElementById('next-lesson-btn').innerHTML = `המשך לשיעור הבא <i class="fa-solid fa-arrow-left"></i>`;
+                if (!window.app.isViewingLesson(course.id, lessonIndex)) return;
+                if (failed) {
+                    const status = document.getElementById('quiz-status');
+                    status.innerHTML = `<i class="fa-solid fa-circle-exclamation text-red-500"></i> לא הצלחנו ליצור בוחן לשיעור הזה.
+                        <button onclick="app.resetQuiz()" class="text-brand-600 font-medium hover:underline">נסה שוב</button>`;
+                    status.classList.remove('hidden');
                 } else {
-                    document.getElementById('next-lesson-btn').classList.remove('hidden');
-                    document.getElementById('next-lesson-btn').innerHTML = `סיום קורס <i class="fa-solid fa-trophy"></i>`;
-                    document.getElementById('next-lesson-btn').classList.remove('bg-green-500');
-                    document.getElementById('next-lesson-btn').classList.add('bg-yellow-500', 'hover:bg-yellow-600');
-                    window.app.showToast('כל הכבוד! סיימת את הקורס בהצלחה!');
+                    window.app.renderQuizSection(course, lessonIndex);
                 }
             },
 
-            goToNextLesson: () => {
+            completeLessonAndContinue: () => {
                 const course = window.app.getCurrentCourse();
                 const cIndex = window.app.state.currentLessonIndex;
-                if (cIndex + 1 < course.numLessons) {
+                course.syllabus[cIndex].completed = true;
+                window.app.updateProgress(course);
+                window.app.saveCoursesToStorage();
+
+                if (cIndex + 1 < course.syllabus.length) {
                     window.app.startLesson(cIndex + 1);
                 } else {
+                    window.app.showToast('כל הכבוד! סיימת את הקורס!');
                     window.app.openCourse(course.id);
                 }
             },
 
             // --- Chatbot ---
+            // On phones the chat is a bottom sheet opened from a floating button; on desktop it's a fixed sidebar
+            openChat: () => {
+                document.getElementById('chat-panel').classList.remove('translate-y-full');
+            },
+
+            closeChat: () => {
+                document.getElementById('chat-panel').classList.add('translate-y-full');
+            },
+
             handleChatSubmit: async (e) => {
                 e.preventDefault();
                 const inputEl = document.getElementById('chat-input');
                 const userQuery = inputEl.value.trim();
                 if (!userQuery) return;
-                
+
                 inputEl.value = '';
                 window.app.appendChatMessage('user', userQuery);
-                
+
                 const course = window.app.getCurrentCourse();
-                const lessonData = course.syllabus[window.app.state.currentLessonIndex].contentData;
-                const lessonContent = lessonData ? lessonData.content : "";
-                
-                const prompt = `אתה מורה פרטי. הלומד שואל שאלה בהתבסס על השיעור שהוא קורא עכשיו.
+                const lessonIndex = window.app.state.currentLessonIndex;
+                const lesson = course.syllabus[lessonIndex];
+                const gen = window.app.generations[window.app.lessonKey(course.id, lessonIndex)];
+                const lessonHtml = lesson.contentData ? lesson.contentData.content : (gen ? gen.text : '');
+                const tmp = document.createElement('div');
+                tmp.innerHTML = lessonHtml;
+                const lessonText = tmp.textContent.replace(/\s+/g, ' ').substring(0, 12000);
+
+                const history = window.app.state.chatHistory.slice(-6)
+                    .map(m => `${m.role === 'user' ? 'לומד' : 'מורה'}: ${m.text}`).join('\n');
+
+                const prompt = `אתה מורה פרטי. הלומד שואל שאלה בהתבסס על השיעור '${lesson.title}' בקורס '${course.topic}'.
 טקסט השיעור:
 """
-${lessonContent.substring(0, 3000)}
+${lessonText}
 """
+${history ? `השיחה עד עכשיו:\n${history}\n` : ''}
 שאלת המשתמש: "${userQuery}"
 
 הנחיות:
 1. ענה בעברית בלבד ובקצרה.
 2. השתמש במידע מהשיעור.`;
 
-                try {
-                    const msgContainer = document.getElementById('chat-messages');
-                    const typingId = 'typing-' + Date.now();
-                    msgContainer.insertAdjacentHTML('beforeend', `
-                        <div id="${typingId}" class="flex items-start gap-2">
-                            <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                                <i class="fa-solid fa-robot text-xs text-indigo-600"></i>
-                            </div>
-                            <div class="bg-white border border-slate-200 rounded-2xl rounded-tr-none p-3 text-sm text-slate-500 shadow-sm flex gap-1">
-                                <div class="w-2 h-2 bg-slate-300 rounded-full animate-bounce"></div>
-                                <div class="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-                                <div class="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                            </div>
+                const msgContainer = document.getElementById('chat-messages');
+                const typingId = 'typing-' + Date.now();
+                msgContainer.insertAdjacentHTML('beforeend', `
+                    <div id="${typingId}" class="flex items-start gap-2">
+                        <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                            <i class="fa-solid fa-robot text-xs text-indigo-600"></i>
                         </div>
-                    `);
-                    msgContainer.scrollTop = msgContainer.scrollHeight;
+                        <div class="bg-white border border-slate-200 rounded-2xl rounded-tr-none p-3 text-sm text-slate-500 shadow-sm flex gap-1">
+                            <div class="w-2 h-2 bg-slate-300 rounded-full animate-bounce"></div>
+                            <div class="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                            <div class="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                        </div>
+                    </div>
+                `);
+                msgContainer.scrollTop = msgContainer.scrollHeight;
 
-                    const responseText = await window.app.callGemini(prompt, null);
-                    
-                    document.getElementById(typingId).remove();
+                try {
+                    const responseText = await window.app.callGemini(prompt);
+                    document.getElementById(typingId)?.remove();
+                    window.app.state.chatHistory.push({ role: 'user', text: userQuery }, { role: 'bot', text: responseText });
                     window.app.appendChatMessage('bot', responseText);
                 } catch(error) {
                     console.error("Chat error", error);
+                    document.getElementById(typingId)?.remove();
                     window.app.appendChatMessage('bot', "מצטער, הייתה לי שגיאה בתקשורת. ודא שמפתח ה-API תקין ונסה שוב.");
                 }
             },
 
             appendChatMessage: (role, text) => {
                 const msgContainer = document.getElementById('chat-messages');
+                // Escape, then allow simple **bold** from the model
+                const safe = window.app.escapeHtml(text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
                 let html = '';
                 if (role === 'user') {
                     html = `
@@ -1125,7 +1357,7 @@ ${lessonContent.substring(0, 3000)}
                                 <i class="fa-solid fa-user text-xs"></i>
                             </div>
                             <div class="bg-brand-600 text-white rounded-2xl rounded-tl-none p-3 text-sm shadow-sm">
-                                ${text}
+                                ${safe}
                             </div>
                         </div>
                     `;
@@ -1135,9 +1367,7 @@ ${lessonContent.substring(0, 3000)}
                             <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
                                 <i class="fa-solid fa-robot text-xs text-indigo-600"></i>
                             </div>
-                            <div class="bg-white border border-slate-200 rounded-2xl rounded-tr-none p-3 text-sm text-slate-700 shadow-sm whitespace-pre-wrap">
-                                ${text}
-                            </div>
+                            <div class="bg-white border border-slate-200 rounded-2xl rounded-tr-none p-3 text-sm text-slate-700 shadow-sm whitespace-pre-wrap">${safe}</div>
                         </div>
                     `;
                 }

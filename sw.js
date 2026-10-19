@@ -1,4 +1,5 @@
-const CACHE_NAME = 'smartlearn-cache-v14';
+// Keep in sync with the version shown in the header of index.html
+const CACHE_NAME = 'smartlearn-cache-v15';
 const urlsToCache = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', event => {
@@ -21,6 +22,8 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Let API calls (POST / other origins, e.g. Gemini streaming) go straight to the network
+  if (event.request.method !== 'GET' || new URL(event.request.url).origin !== self.location.origin) return;
   event.respondWith(
     fetch(event.request)
       .then(response => {
