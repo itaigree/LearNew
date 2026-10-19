@@ -87,7 +87,7 @@
                 <div class="w-8 h-8 bg-brand-600 text-white rounded-lg flex items-center justify-center font-bold text-xl">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v20</span></h1>
+                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v21</span></h1>
             </div>
             
             <div id="nav-actions" class="flex items-center gap-4">
@@ -115,6 +115,8 @@
                         <i class="fa-solid fa-plus"></i> צור קורס חדש
                     </button>
                 </div>
+
+                <div id="continue-card" class="hidden mb-6"></div>
 
                 <div id="courses-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <!-- Courses will be injected here -->
@@ -426,6 +428,21 @@
                         </div>
                         <p class="text-xs text-slate-400 mt-2">בלחיצה על Google Calendar נפתח עמוד של אירוע חוזר, ולוחצים "שמירה". קובץ היומן מתאים ליומן של סמסונג, אפל או Outlook.</p>
                     </div>
+
+                    <div class="pt-4 mt-2 border-t border-slate-100">
+                        <h4 class="text-sm font-bold text-slate-800 mb-1">גיבוי</h4>
+                        <p class="text-xs text-slate-500 mb-1">הקורסים נשמרים רק בדפדפן במכשיר הזה. כדאי לשמור גיבוי מדי פעם, ובמיוחד לפני ניקוי הדפדפן או מעבר לטלפון חדש.</p>
+                        <p id="storage-info" class="text-xs text-slate-400 mb-3"></p>
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" onclick="app.exportBackup()" class="px-3 py-2 text-sm font-medium text-slate-700 border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">
+                                <i class="fa-solid fa-download ml-1"></i> שמור גיבוי
+                            </button>
+                            <button type="button" onclick="document.getElementById('backup-file').click()" class="px-3 py-2 text-sm font-medium text-slate-700 border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">
+                                <i class="fa-solid fa-upload ml-1"></i> שחזר מגיבוי
+                            </button>
+                            <input type="file" id="backup-file" accept=".json,application/json" class="hidden" onchange="app.importBackup(event)">
+                        </div>
+                    </div>
                 </div>
 
                 <div class="mt-8 flex justify-end">
@@ -586,6 +603,7 @@
                 const r = window.app.getReminderPrefs();
                 document.getElementById('reminder-days').value = r.days;
                 document.getElementById('reminder-time').value = r.time;
+                window.app.updateStorageInfo();
                 
                 if (forceClose) {
                     document.getElementById('close-settings-btn').classList.add('hidden');
@@ -623,6 +641,72 @@
                     window.app.showToast('ההגדרות נשמרו בהצלחה!');
                     window.app.closeSettingsModal();
                 }
+            },
+
+            // --- Backup: everything lives only in this browser, so let the user save / restore it as a file ---
+            exportBackup: () => {
+                let defaults = null, reminder = null;
+                try { defaults = JSON.parse(localStorage.getItem('smartlearn_defaults')); } catch (e) {}
+                try { reminder = JSON.parse(localStorage.getItem('smartlearn_reminder')); } catch (e) {}
+                // The API key is deliberately left out - a backup file may end up shared or synced
+                const data = { app: 'smartlearn', version: 1, exportedAt: new Date().toISOString(), courses: window.app.state.courses, defaults, reminder };
+                const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `smartlearn-backup-${new Date().toISOString().slice(0, 10)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+                window.app.showToast('הגיבוי נשמר בתיקיית ההורדות');
+            },
+
+            importBackup: async (e) => {
+                const file = e.target.files[0];
+                e.target.value = ''; // allow choosing the same file again
+                if (!file) return;
+                let data;
+                try {
+                    data = JSON.parse(await file.text());
+                } catch (err) {
+                    window.app.showToast('הקובץ הזה לא נראה כמו גיבוי של SmartLearn');
+                    return;
+                }
+                const courses = data && data.app === 'smartlearn' && Array.isArray(data.courses)
+                    ? data.courses.filter(c => c && c.id && c.topic && Array.isArray(c.syllabus) && c.syllabus.length > 0)
+                    : [];
+                if (courses.length === 0) {
+                    window.app.showToast('לא נמצאו קורסים בקובץ הגיבוי');
+                    return;
+                }
+                const existing = new Set(window.app.state.courses.map(c => c.id));
+                const replaced = courses.filter(c => existing.has(c.id)).length;
+                const msg = `לשחזר ${courses.length} קורסים מהגיבוי?` + (replaced ? `\n${replaced} מהם כבר קיימים במכשיר ויוחלפו בגרסה מהגיבוי.` : '');
+                if (!confirm(msg)) return;
+
+                // Same id -> take the backup's version; everything else is kept
+                const imported = new Map(courses.map(c => [c.id, c]));
+                const merged = window.app.state.courses.map(c => imported.get(c.id) || c);
+                courses.forEach(c => { if (!existing.has(c.id)) merged.push(c); });
+                merged.forEach(course => {
+                    course.syllabus.forEach(l => { if (l.completed === undefined) l.completed = false; });
+                    course.numLessons = course.syllabus.length;
+                    window.app.updateProgress(course);
+                });
+                window.app.state.courses = merged;
+                if (data.defaults && !localStorage.getItem('smartlearn_defaults')) localStorage.setItem('smartlearn_defaults', JSON.stringify(data.defaults));
+                if (data.reminder && !localStorage.getItem('smartlearn_reminder')) localStorage.setItem('smartlearn_reminder', JSON.stringify(data.reminder));
+                window.app.applyCourseDefaults();
+                if (window.app.saveCoursesToStorage()) window.app.showToast(`שוחזרו ${courses.length} קורסים!`);
+                window.app.updateStorageInfo();
+                window.app.renderDashboard();
+            },
+
+            updateStorageInfo: () => {
+                const chars = (localStorage.getItem('smartlearn_courses') || '').length;
+                const mb = chars * 2 / (1024 * 1024); // browsers store text as UTF-16
+                const size = mb < 0.1 ? 'פחות מ-0.1MB' : `בערך ${mb.toFixed(1)}MB`;
+                document.getElementById('storage-info').textContent = `${window.app.state.courses.length} קורסים במכשיר · נפח ${size} מתוך כ-5MB`;
             },
 
             // --- "Ready" notifications ---
@@ -1397,6 +1481,7 @@ ${JSON.stringify(p.lessons)}
                 const courses = window.app.state.courses;
                 
                 Array.from(grid.children).forEach(c => { if(c.id !== 'no-courses-msg') c.remove(); });
+                window.app.renderContinueCard();
                 
                 if (courses.length === 0) {
                     noMsg.classList.remove('hidden');
@@ -1432,6 +1517,50 @@ ${JSON.stringify(p.lessons)}
                     `;
                     grid.appendChild(card);
                 });
+            },
+
+            // The lesson to continue with: the last one opened if unfinished, otherwise the next unfinished one
+            nextLessonIndex: (course) => {
+                const n = course.syllabus.length;
+                const last = Number.isInteger(course.lastLessonIndex) ? course.lastLessonIndex : -1;
+                if (last >= 0 && last < n && !course.syllabus[last].completed) return last;
+                for (let k = 1; k <= n; k++) {
+                    const i = (last + k) % n;
+                    if (!course.syllabus[i].completed) return i;
+                }
+                return -1; // course finished
+            },
+
+            renderContinueCard: () => {
+                const box = document.getElementById('continue-card');
+                const course = window.app.state.courses
+                    .filter(c => c.lastStudiedAt && window.app.nextLessonIndex(c) >= 0)
+                    .sort((a, b) => b.lastStudiedAt - a.lastStudiedAt)[0];
+                if (!course) {
+                    box.classList.add('hidden');
+                    return;
+                }
+                const index = window.app.nextLessonIndex(course);
+                const esc = window.app.escapeHtml;
+                box.innerHTML = `
+                    <button onclick="app.continueLearning('${course.id}', ${index})" class="w-full text-right bg-brand-600 hover:bg-brand-700 text-white rounded-xl shadow-sm p-5 flex items-center gap-4 transition-colors">
+                        <div class="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center shrink-0 text-xl">
+                            <i class="fa-solid fa-play"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs text-brand-100 mb-0.5">המשך מאיפה שעצרת</div>
+                            <div class="font-bold text-lg truncate">${esc(course.topic)}</div>
+                            <div class="text-sm text-brand-100 truncate">שיעור ${index + 1}: ${esc(course.syllabus[index].title)}</div>
+                        </div>
+                        <i class="fa-solid fa-arrow-left text-lg shrink-0"></i>
+                    </button>
+                `;
+                box.classList.remove('hidden');
+            },
+
+            continueLearning: (courseId, index) => {
+                window.app.state.currentCourseId = courseId;
+                window.app.startLesson(index);
             },
 
             deleteCurrentCourse: () => {
@@ -1529,6 +1658,9 @@ ${JSON.stringify(p.lessons)}
                 const course = window.app.getCurrentCourse();
                 const lesson = course.syllabus[lessonIndex];
                 window.app.state.currentLessonIndex = lessonIndex;
+                course.lastLessonIndex = lessonIndex; // for "continue where you left off"
+                course.lastStudiedAt = Date.now();
+                window.app.saveCoursesToStorage();
 
                 document.getElementById('lesson-current-title').textContent = `שיעור ${lessonIndex + 1}: ${lesson.title}`;
                 document.getElementById('lesson-counter').textContent = `שיעור ${lessonIndex + 1} מתוך ${course.numLessons}`;
@@ -1558,7 +1690,8 @@ ${JSON.stringify(p.lessons)}
                 if (lesson.contentData) {
                     window.app.renderLesson(course, lessonIndex);
                 } else if (gen) {
-                    // Already being written (e.g. user left and came back) - just re-attach to the stream
+                    // Already being written (e.g. user left and came back, or written ahead) - just re-attach to the stream
+                    gen.background = false; // the user is waiting for it now
                     if (gen.text) window.app.renderStreamingContent(gen.text);
                 } else {
                     await window.app.generateLesson(lessonIndex, course);
@@ -1626,11 +1759,12 @@ ${JSON.stringify(p.lessons)}
                 document.getElementById('lesson-streaming').classList.remove('hidden');
             },
 
-            generateLesson: async (lessonIndex, course) => {
+            // background: written ahead while the user reads the previous lesson - no toast / notification
+            generateLesson: async (lessonIndex, course, background = false) => {
                 const key = window.app.lessonKey(course.id, lessonIndex);
-                const gen = { text: '' };
+                const gen = { text: '', background };
                 window.app.generations[key] = gen;
-                window.app.ensureNotifyPermission();
+                if (!background) window.app.ensureNotifyPermission();
 
                 const currentLesson = course.syllabus[lessonIndex];
                 const fullSyllabusJson = JSON.stringify(course.syllabus.map(s => ({title: s.title, summary: s.summary})));
@@ -1666,12 +1800,12 @@ ${JSON.stringify(p.lessons)}
                     currentLesson.contentData = { content, quiz: null };
                     window.app.saveCoursesToStorage();
                     delete window.app.generations[key];
-                    window.app.notify(`שיעור ${lessonIndex + 1} מוכן! 📖`, currentLesson.title, `lesson:${course.id}:${lessonIndex}`);
+                    if (!gen.background) window.app.notify(`שיעור ${lessonIndex + 1} מוכן! 📖`, currentLesson.title, `lesson:${course.id}:${lessonIndex}`);
 
                     if (window.app.isViewingLesson(course.id, lessonIndex)) {
                         window.app.renderLesson(course, lessonIndex);
                     } else {
-                        window.app.showToast(`שיעור ${lessonIndex + 1} מוכן!`);
+                        if (!gen.background) window.app.showToast(`שיעור ${lessonIndex + 1} מוכן!`);
                         const s = window.app.state;
                         if (s.view === 'syllabus' && s.currentCourseId === course.id) window.app.openCourse(course.id, true);
                     }
@@ -1695,6 +1829,15 @@ ${JSON.stringify(p.lessons)}
                 document.getElementById('lesson-nav').classList.remove('hidden');
 
                 window.app.renderQuizSection(course, lessonIndex);
+                window.app.prefetchNextLesson(course, lessonIndex);
+            },
+
+            // While the user reads a lesson, write the next one so it's ready when they get there (one ahead only)
+            prefetchNextLesson: (course, lessonIndex) => {
+                const next = lessonIndex + 1;
+                if (next >= course.syllabus.length || course.syllabus[next].contentData) return;
+                if (window.app.generations[window.app.lessonKey(course.id, next)]) return;
+                window.app.generateLesson(next, course, true);
             },
 
             // --- Optional Quiz ---

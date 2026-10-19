@@ -1,5 +1,5 @@
 // Keep in sync with the version shown in the header of index.html
-const CACHE_NAME = 'smartlearn-cache-v20';
+const CACHE_NAME = 'smartlearn-cache-v21';
 const urlsToCache = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', event => {
@@ -21,9 +21,35 @@ self.addEventListener('activate', event => {
   );
 });
 
+// Design files the app loads from CDNs (Tailwind, fonts, icons). Kept in the cache so already-written
+// lessons can be read without internet; served from cache and refreshed in the background.
+const CDN_HOSTS = ['cdn.tailwindcss.com', 'fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com'];
+
 self.addEventListener('fetch', event => {
-  // Let API calls (POST / other origins, e.g. Gemini streaming) go straight to the network
-  if (event.request.method !== 'GET' || new URL(event.request.url).origin !== self.location.origin) return;
+  if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+
+  if (CDN_HOSTS.includes(url.hostname)) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(cache =>
+        cache.match(event.request).then(cached => {
+          const network = fetch(event.request)
+            .then(response => {
+              // Opaque (no-cors) responses have status 0 but are still usable
+              if (response && (response.ok || response.type === 'opaque')) cache.put(event.request, response.clone());
+              return response;
+            })
+            .catch(() => cached);
+          event.waitUntil(network.catch(() => {})); // let the background refresh finish
+          return cached || network;
+        })
+      )
+    );
+    return;
+  }
+
+  // Let API calls (e.g. Gemini) and anything else from other origins go straight to the network
+  if (url.origin !== self.location.origin) return;
   event.respondWith(
     fetch(event.request)
       .then(response => {
