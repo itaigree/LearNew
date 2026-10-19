@@ -87,7 +87,7 @@
                 <div class="w-8 h-8 bg-brand-600 text-white rounded-lg flex items-center justify-center font-bold text-xl">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v17</span></h1>
+                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v18</span></h1>
             </div>
             
             <div id="nav-actions" class="flex items-center gap-4">
@@ -387,6 +387,40 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="pt-4 mt-2 border-t border-slate-100">
+                        <h4 class="text-sm font-bold text-slate-800 mb-2">התראות</h4>
+                        <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                            <input type="checkbox" id="settings-notify" onchange="app.onNotifyToggle()" class="w-4 h-4 accent-brand-600">
+                            שלח לי התראה כשסילבוס או שיעור מוכנים
+                        </label>
+                        <p class="text-xs text-slate-500 mt-1">כך אפשר לצאת מהאפליקציה בזמן היצירה. ההתראה תגיע רק אם הדפדפן ממשיך להריץ את האפליקציה ברקע (בדרך כלל כמה דקות).</p>
+                        <p id="notify-blocked" class="hidden text-xs text-red-500 mt-1"></p>
+                    </div>
+
+                    <div class="pt-4 mt-2 border-t border-slate-100">
+                        <h4 class="text-sm font-bold text-slate-800 mb-1">תזכורת ללמידה</h4>
+                        <p class="text-xs text-slate-500 mb-3">התזכורת נשמרת ביומן של הטלפון, כך שתקבל אותה גם כשהאפליקציה סגורה.</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="reminder-days" class="block text-sm font-medium text-slate-700 mb-1">כל כמה ימים</label>
+                                <input type="number" id="reminder-days" min="1" max="30" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none">
+                            </div>
+                            <div>
+                                <label for="reminder-time" class="block text-sm font-medium text-slate-700 mb-1">באיזו שעה</label>
+                                <input type="time" id="reminder-time" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none">
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mt-3">
+                            <button type="button" onclick="app.addReminderGoogle()" class="px-3 py-2 text-sm font-medium text-brand-700 border border-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
+                                <i class="fa-brands fa-google ml-1"></i> הוסף ל-Google Calendar
+                            </button>
+                            <button type="button" onclick="app.downloadReminderIcs()" class="px-3 py-2 text-sm font-medium text-slate-700 border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">
+                                <i class="fa-regular fa-calendar-plus ml-1"></i> קובץ יומן (ICS)
+                            </button>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-2">ב-Google Calendar נפתח עמוד של אירוע חוזר, ולוחצים "שמירה". קובץ היומן מתאים ליומן של סמסונג, אפל או Outlook.</p>
+                    </div>
                 </div>
 
                 <div class="mt-8 flex justify-end">
@@ -421,6 +455,27 @@
                 window.app.applyCourseDefaults();
                 window.app.loadCoursesFromStorage();
                 window.app.renderDashboard();
+
+                // A syllabus waiting for approval survives the app being closed
+                try { window.app.state.pendingCourse = JSON.parse(localStorage.getItem('smartlearn_pending_course')); } catch (e) {}
+
+                // Opened from a notification while the app was closed (see sw.js)
+                const open = new URLSearchParams(location.search).get('open');
+                if (open) history.replaceState(null, '', location.pathname);
+                if (open && open !== 'syllabus') window.app.handleOpenTarget(open);
+                else if (window.app.state.pendingCourse && window.app.getApiKey()) window.app.openCreateModal();
+
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.addEventListener('message', (e) => {
+                        if (e.data && e.data.type === 'notification-click') window.app.handleOpenTarget(e.data.open);
+                    });
+                }
+            },
+
+            setPendingCourse: (pending) => {
+                window.app.state.pendingCourse = pending;
+                if (pending) localStorage.setItem('smartlearn_pending_course', JSON.stringify(pending));
+                else localStorage.removeItem('smartlearn_pending_course');
             },
 
             // --- Storage & Sync (No Firebase) ---
@@ -476,6 +531,11 @@
                 const d = window.app.getCourseDefaults();
                 document.getElementById('settings-lessons').value = d.numLessons;
                 document.getElementById('settings-persona').value = d.persona;
+                document.getElementById('settings-notify').checked = window.app.getNotifyPref();
+                window.app.updateNotifyHint();
+                const r = window.app.getReminderPrefs();
+                document.getElementById('reminder-days').value = r.days;
+                document.getElementById('reminder-time').value = r.time;
                 
                 if (forceClose) {
                     document.getElementById('close-settings-btn').classList.add('hidden');
@@ -505,10 +565,158 @@
                     const numLessons = Math.min(30, Math.max(1, parseInt(document.getElementById('settings-lessons').value) || 5));
                     const persona = document.getElementById('settings-persona').value;
                     localStorage.setItem('smartlearn_defaults', JSON.stringify({ numLessons, persona }));
+                    localStorage.setItem('smartlearn_notify', document.getElementById('settings-notify').checked ? '1' : '0');
                     window.app.applyCourseDefaults();
                     window.app.showToast('ההגדרות נשמרו בהצלחה!');
                     window.app.closeSettingsModal();
                 }
+            },
+
+            // --- "Ready" notifications ---
+            // Only works while the browser keeps the app running in the background (usually a few minutes on Android)
+            getNotifyPref: () => localStorage.getItem('smartlearn_notify') !== '0',
+
+            updateNotifyHint: () => {
+                const blocked = 'Notification' in window && Notification.permission === 'denied';
+                const unsupported = !('Notification' in window);
+                const hint = document.getElementById('notify-blocked');
+                hint.textContent = unsupported
+                    ? 'הדפדפן הזה לא תומך בהתראות.'
+                    : 'ההתראות חסומות בדפדפן. כדי לאפשר: לחיצה על הסמל שליד הכתובת ← הרשאות ← התראות.';
+                hint.classList.toggle('hidden', !(blocked || unsupported) || !document.getElementById('settings-notify').checked);
+            },
+
+            // Must run inside a click handler - browsers only show the permission prompt after a user gesture
+            ensureNotifyPermission: () => {
+                if (!window.app.getNotifyPref() || !('Notification' in window) || Notification.permission !== 'default') return;
+                Notification.requestPermission().then(() => window.app.updateNotifyHint()).catch(() => {});
+            },
+
+            onNotifyToggle: () => {
+                if (document.getElementById('settings-notify').checked && 'Notification' in window && Notification.permission === 'default') {
+                    Notification.requestPermission().then(() => window.app.updateNotifyHint()).catch(() => {});
+                }
+                window.app.updateNotifyHint();
+            },
+
+            // open: 'syllabus' or 'lesson:<courseId>:<index>' - where a click on the notification should take you
+            notify: async (title, body, open) => {
+                if (!window.app.getNotifyPref() || !('Notification' in window) || Notification.permission !== 'granted') return;
+                if (document.visibilityState === 'visible') return; // the user is looking at the app anyway
+                const options = { body, icon: './icon-192.png', badge: './icon-192.png', tag: open, data: { open }, lang: 'he', dir: 'rtl' };
+                try {
+                    // Android only allows notifications through the service worker
+                    const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
+                    if (reg) await reg.showNotification(title, options);
+                    else new Notification(title, options);
+                } catch (e) {
+                    console.warn("Notification failed", e);
+                }
+            },
+
+            handleOpenTarget: (open) => {
+                if (!open) return;
+                if (open === 'syllabus') {
+                    if (window.app.state.pendingCourse) window.app.openCreateModal();
+                    return;
+                }
+                const [kind, courseId, index] = open.split(':');
+                const lessonIndex = parseInt(index);
+                const course = window.app.state.courses.find(c => c.id === courseId);
+                if (kind !== 'lesson' || !course || !course.syllabus[lessonIndex]) return;
+                if (window.app.isViewingLesson(courseId, lessonIndex)) return;
+                window.app.state.currentCourseId = courseId;
+                window.app.startLesson(lessonIndex);
+            },
+
+            // --- Study reminders (added to the phone's calendar, which handles the alerts) ---
+            getReminderPrefs: () => {
+                let saved = {};
+                try { saved = JSON.parse(localStorage.getItem('smartlearn_reminder')) || {}; } catch (e) {}
+                return { days: saved.days || 1, time: saved.time || '20:00' };
+            },
+
+            readReminderForm: () => {
+                const days = Math.min(30, Math.max(1, parseInt(document.getElementById('reminder-days').value) || 1));
+                const time = document.getElementById('reminder-time').value || '20:00';
+                localStorage.setItem('smartlearn_reminder', JSON.stringify({ days, time }));
+
+                // First reminder: today at that time, or tomorrow if it already passed
+                const [h, m] = time.split(':').map(Number);
+                const start = new Date();
+                start.setHours(h, m, 0, 0);
+                if (start <= new Date()) start.setDate(start.getDate() + 1);
+                const end = new Date(start.getTime() + 30 * 60000);
+                return { days, start, end };
+            },
+
+            calendarTime: (d) => {
+                const p = (n) => String(n).padStart(2, '0');
+                return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}T${p(d.getHours())}${p(d.getMinutes())}00`;
+            },
+
+            appUrl: () => location.origin + location.pathname,
+
+            addReminderGoogle: () => {
+                const { days, start, end } = window.app.readReminderForm();
+                const params = new URLSearchParams({
+                    action: 'TEMPLATE',
+                    text: 'זמן ללמוד ב-SmartLearn 📚',
+                    dates: `${window.app.calendarTime(start)}/${window.app.calendarTime(end)}`,
+                    ctz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    recur: `RRULE:FREQ=DAILY;INTERVAL=${days}`,
+                    details: `ממשיכים בקורסים: ${window.app.appUrl()}`
+                });
+                window.open(`https://calendar.google.com/calendar/render?${params}`, '_blank');
+            },
+
+            downloadReminderIcs: () => {
+                const { days, start } = window.app.readReminderForm();
+                const esc = (t) => t.replace(/[\\,;]/g, c => '\\' + c).replace(/\n/g, '\\n');
+                // iCalendar lines are limited to 75 bytes; longer ones continue on a line starting with a space
+                const encoder = new TextEncoder();
+                const fold = (line) => {
+                    let out = '', bytes = 0;
+                    for (const ch of line) {
+                        const len = encoder.encode(ch).length;
+                        if (bytes + len > 73) { out += '\r\n '; bytes = 1; }
+                        out += ch;
+                        bytes += len;
+                    }
+                    return out;
+                };
+                const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+                const lines = [
+                    'BEGIN:VCALENDAR',
+                    'VERSION:2.0',
+                    'PRODID:-//SmartLearn//Study Reminder//HE',
+                    'CALSCALE:GREGORIAN',
+                    'BEGIN:VEVENT',
+                    `UID:smartlearn-reminder-${Date.now()}@smartlearn`,
+                    `DTSTAMP:${stamp}`,
+                    `DTSTART:${window.app.calendarTime(start)}`,
+                    'DURATION:PT30M',
+                    `RRULE:FREQ=DAILY;INTERVAL=${days}`,
+                    `SUMMARY:${esc('זמן ללמוד ב-SmartLearn 📚')}`,
+                    `DESCRIPTION:${esc(`ממשיכים בקורסים: ${window.app.appUrl()}`)}`,
+                    `URL:${window.app.appUrl()}`,
+                    'BEGIN:VALARM',
+                    'ACTION:DISPLAY',
+                    `DESCRIPTION:${esc('זמן ללמוד ב-SmartLearn')}`,
+                    'TRIGGER:PT0M',
+                    'END:VALARM',
+                    'END:VEVENT',
+                    'END:VCALENDAR'
+                ];
+                const blob = new Blob([lines.map(fold).join('\r\n') + '\r\n'], { type: 'text/calendar;charset=utf-8' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'smartlearn-reminder.ics';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+                window.app.showToast('הקובץ ירד - פתח אותו כדי להוסיף את התזכורת ליומן');
             },
 
             // --- UI Navigation ---
@@ -861,7 +1069,8 @@
                 const numLessons = parseInt(document.getElementById('input-lessons').value);
                 const persona = document.getElementById('input-persona').value;
                 
-                window.app.showModalLoading("הבינה המלאכותית מתכננת את הקורס...", "אנו בונים סילבוס מותאם אישית לפי הדרישות שלך. זה ייקח מספר שניות.");
+                window.app.ensureNotifyPermission();
+                window.app.showModalLoading("הבינה המלאכותית מתכננת את הקורס...", "אנו בונים סילבוס מותאם אישית לפי הדרישות שלך. אפשר לצאת מהאפליקציה - נשלח התראה כשהוא מוכן.");
 
                 const prompt = `אתה מומחה פדגוגי מנוסה בבניית תוכניות לימוד מקיפות. עליך לבנות סילבוס מלא ומובנה לקורס בנושא '${topic}'.
 
@@ -887,9 +1096,10 @@
                     }
 
                     // Let the user review (and ask for changes) before the course is created
-                    window.app.state.pendingCourse = { topic, currentLevel, targetLevel, persona, lessons: syllabusData.lessons };
+                    window.app.setPendingCourse({ topic, currentLevel, targetLevel, persona, lessons: syllabusData.lessons });
                     window.app.hideModalLoading();
                     window.app.showCreateStep('review');
+                    window.app.notify('הסילבוס מוכן! 📚', `הסילבוס לקורס "${topic}" מחכה לאישור שלך.`, 'syllabus');
 
                 } catch(error) {
                     console.error("Create course failed", error);
@@ -923,6 +1133,7 @@
                     return;
                 }
                 const p = window.app.state.pendingCourse;
+                window.app.ensureNotifyPermission();
                 window.app.showModalLoading("מעדכן את הסילבוס...", "הבינה המלאכותית מכניסה את השינויים שביקשת.");
 
                 const prompt = `אתה מומחה פדגוגי מנוסה. לפניך סילבוס לקורס בנושא '${p.topic}'.
@@ -946,11 +1157,12 @@ ${JSON.stringify(p.lessons)}
                     if (!syllabusData.lessons || syllabusData.lessons.length === 0) {
                         throw new Error("הסילבוס שהוחזר ריק");
                     }
-                    p.lessons = syllabusData.lessons;
+                    window.app.setPendingCourse({ ...p, lessons: syllabusData.lessons });
                     feedbackEl.value = '';
                     window.app.hideModalLoading();
                     window.app.renderSyllabusReview();
                     window.app.showToast('הסילבוס עודכן!');
+                    window.app.notify('הסילבוס עודכן! 📚', `הסילבוס לקורס "${p.topic}" עודכן ומחכה לאישור שלך.`, 'syllabus');
                 } catch (error) {
                     console.error("Revise syllabus failed", error);
                     window.app.showModalError(error);
@@ -958,7 +1170,7 @@ ${JSON.stringify(p.lessons)}
             },
 
             backToCourseForm: () => {
-                window.app.state.pendingCourse = null;
+                window.app.setPendingCourse(null);
                 document.getElementById('review-feedback').value = '';
                 window.app.showCreateStep('form');
             },
@@ -980,7 +1192,7 @@ ${JSON.stringify(p.lessons)}
                 window.app.state.courses.unshift(newCourse);
                 window.app.saveCoursesToStorage();
                 
-                window.app.state.pendingCourse = null;
+                window.app.setPendingCourse(null);
                 document.activeElement?.blur();
                 document.getElementById('create-course-form').reset();
                 window.app.applyCourseDefaults();
@@ -1205,6 +1417,7 @@ ${JSON.stringify(p.lessons)}
                 const key = window.app.lessonKey(course.id, lessonIndex);
                 const gen = { text: '' };
                 window.app.generations[key] = gen;
+                window.app.ensureNotifyPermission();
 
                 const currentLesson = course.syllabus[lessonIndex];
                 const fullSyllabusJson = JSON.stringify(course.syllabus.map(s => ({title: s.title, summary: s.summary})));
@@ -1240,6 +1453,7 @@ ${JSON.stringify(p.lessons)}
                     currentLesson.contentData = { content, quiz: null };
                     window.app.saveCoursesToStorage();
                     delete window.app.generations[key];
+                    window.app.notify(`שיעור ${lessonIndex + 1} מוכן! 📖`, currentLesson.title, `lesson:${course.id}:${lessonIndex}`);
 
                     if (window.app.isViewingLesson(course.id, lessonIndex)) {
                         window.app.renderLesson(course, lessonIndex);

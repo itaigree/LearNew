@@ -1,5 +1,5 @@
 // Keep in sync with the version shown in the header of index.html
-const CACHE_NAME = 'smartlearn-cache-v17';
+const CACHE_NAME = 'smartlearn-cache-v18';
 const urlsToCache = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', event => {
@@ -35,4 +35,20 @@ self.addEventListener('fetch', event => {
       })
       .catch(() => caches.match(event.request))
   );
+});
+
+// Clicking a "ready" notification brings the app to the front and opens the syllabus / lesson
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const open = (event.notification.data && event.notification.data.open) || '';
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const client = windows.find(c => c.url.startsWith(self.registration.scope));
+    if (client) {
+      await client.focus();
+      client.postMessage({ type: 'notification-click', open });
+    } else {
+      await self.clients.openWindow(self.registration.scope + (open ? '?open=' + encodeURIComponent(open) : ''));
+    }
+  })());
 });
