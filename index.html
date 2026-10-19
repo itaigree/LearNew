@@ -87,7 +87,7 @@
                 <div class="w-8 h-8 bg-brand-600 text-white rounded-lg flex items-center justify-center font-bold text-xl">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v18</span></h1>
+                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v19</span></h1>
             </div>
             
             <div id="nav-actions" class="flex items-center gap-4">
@@ -142,9 +142,14 @@
                                 <span id="syllabus-progress-text"><i class="fa-solid fa-chart-line ml-1"></i> התקדמות</span>
                             </div>
                         </div>
-                        <button onclick="app.deleteCurrentCourse()" class="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors text-sm" title="מחק קורס">
-                            <i class="fa-regular fa-trash-can"></i>
-                        </button>
+                        <div class="flex items-center gap-1 shrink-0">
+                            <button id="course-reminder-btn" onclick="app.openReminderModal()" class="text-brand-600 hover:bg-brand-50 p-2 rounded-lg transition-colors" title="תזכורת לקורס">
+                                <i class="fa-regular fa-bell"></i>
+                            </button>
+                            <button onclick="app.deleteCurrentCourse()" class="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors text-sm" title="מחק קורס">
+                                <i class="fa-regular fa-trash-can"></i>
+                            </button>
+                        </div>
                     </div>
                     
                     <div id="lessons-list" class="divide-y divide-slate-100">
@@ -399,8 +404,8 @@
                     </div>
 
                     <div class="pt-4 mt-2 border-t border-slate-100">
-                        <h4 class="text-sm font-bold text-slate-800 mb-1">תזכורת ללמידה</h4>
-                        <p class="text-xs text-slate-500 mb-3">התזכורת נשמרת ביומן של הטלפון, כך שתקבל אותה גם כשהאפליקציה סגורה.</p>
+                        <h4 class="text-sm font-bold text-slate-800 mb-1">תזכורת כללית</h4>
+                        <p class="text-xs text-slate-500 mb-3">תזכורת קבועה ביומן של הטלפון: "רוצה ללמוד משהו?". לתזכורת לקורס מסוים, לחץ על הפעמון בראש הקורס.</p>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label for="reminder-days" class="block text-sm font-medium text-slate-700 mb-1">כל כמה ימים</label>
@@ -412,14 +417,14 @@
                             </div>
                         </div>
                         <div class="flex flex-wrap gap-2 mt-3">
-                            <button type="button" onclick="app.addReminderGoogle()" class="px-3 py-2 text-sm font-medium text-brand-700 border border-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
+                            <button type="button" onclick="app.addReminderGoogle('general')" class="px-3 py-2 text-sm font-medium text-brand-700 border border-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
                                 <i class="fa-brands fa-google ml-1"></i> הוסף ל-Google Calendar
                             </button>
-                            <button type="button" onclick="app.downloadReminderIcs()" class="px-3 py-2 text-sm font-medium text-slate-700 border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">
+                            <button type="button" onclick="app.downloadReminderIcs('general')" class="px-3 py-2 text-sm font-medium text-slate-700 border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">
                                 <i class="fa-regular fa-calendar-plus ml-1"></i> קובץ יומן (ICS)
                             </button>
                         </div>
-                        <p class="text-xs text-slate-400 mt-2">ב-Google Calendar נפתח עמוד של אירוע חוזר, ולוחצים "שמירה". קובץ היומן מתאים ליומן של סמסונג, אפל או Outlook.</p>
+                        <p class="text-xs text-slate-400 mt-2">בלחיצה על Google Calendar נפתח עמוד של אירוע חוזר, ולוחצים "שמירה". קובץ היומן מתאים ליומן של סמסונג, אפל או Outlook.</p>
                     </div>
                 </div>
 
@@ -429,6 +434,42 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Course Reminder Modal -->
+    <div id="reminder-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl shadow-xl w-[calc(100%-2rem)] max-w-md max-h-[90dvh] overflow-y-auto transform scale-95 transition-transform duration-300" id="reminder-modal-content">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-lg text-slate-800"><i class="fa-solid fa-bell text-brand-600 ml-1"></i> תזכורת לקורס</h3>
+                <button onclick="app.closeReminderModal()" class="text-slate-400 hover:text-slate-600" title="סגור">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <p class="text-sm text-slate-600 mb-1">תזכורת קבועה ביומן של הטלפון:</p>
+                <p id="course-reminder-title" class="text-base font-bold text-brand-700 mb-4"></p>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="course-reminder-days" class="block text-sm font-medium text-slate-700 mb-1">כל כמה ימים</label>
+                        <input type="number" id="course-reminder-days" min="1" max="30" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none">
+                    </div>
+                    <div>
+                        <label for="course-reminder-time" class="block text-sm font-medium text-slate-700 mb-1">באיזו שעה</label>
+                        <input type="time" id="course-reminder-time" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none">
+                    </div>
+                </div>
+                <p class="text-sm font-medium text-slate-700 mt-5 mb-2">להוסיף ל:</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" onclick="app.addReminderGoogle('course')" class="px-3 py-2.5 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-sm transition-colors">
+                        <i class="fa-brands fa-google ml-1"></i> Google Calendar
+                    </button>
+                    <button type="button" onclick="app.downloadReminderIcs('course')" class="px-3 py-2.5 text-sm font-medium text-brand-700 border border-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
+                        <i class="fa-regular fa-calendar-plus ml-1"></i> קובץ יומן (ICS)
+                    </button>
+                </div>
+                <p class="text-xs text-slate-400 mt-3">בלחיצה על Google Calendar נפתח עמוד של אירוע חוזר, ולוחצים "שמירה". קובץ היומן מתאים ליומן של סמסונג, אפל או Outlook. הקישור באירוע פותח ישר את הקורס.</p>
+            </div>
         </div>
     </div>
 
@@ -623,6 +664,10 @@
                 const [kind, courseId, index] = open.split(':');
                 const lessonIndex = parseInt(index);
                 const course = window.app.state.courses.find(c => c.id === courseId);
+                if (kind === 'course' && course) {
+                    window.app.openCourse(courseId);
+                    return;
+                }
                 if (kind !== 'lesson' || !course || !course.syllabus[lessonIndex]) return;
                 if (window.app.isViewingLesson(courseId, lessonIndex)) return;
                 window.app.state.currentCourseId = courseId;
@@ -630,16 +675,19 @@
             },
 
             // --- Study reminders (added to the phone's calendar, which handles the alerts) ---
-            getReminderPrefs: () => {
-                let saved = {};
-                try { saved = JSON.parse(localStorage.getItem('smartlearn_reminder')) || {}; } catch (e) {}
-                return { days: saved.days || 1, time: saved.time || '20:00' };
+            // scope 'general': "רוצה ללמוד משהו?" from settings; scope 'course': "בוא נלמד X!" from the bell in a course
+            getReminderPrefs: (course = null) => {
+                let saved = course ? course.reminder : null;
+                if (!course) {
+                    try { saved = JSON.parse(localStorage.getItem('smartlearn_reminder')); } catch (e) {}
+                }
+                return { days: (saved && saved.days) || 1, time: (saved && saved.time) || '20:00' };
             },
 
-            readReminderForm: () => {
-                const days = Math.min(30, Math.max(1, parseInt(document.getElementById('reminder-days').value) || 1));
-                const time = document.getElementById('reminder-time').value || '20:00';
-                localStorage.setItem('smartlearn_reminder', JSON.stringify({ days, time }));
+            readReminder: (scope) => {
+                const prefix = scope === 'course' ? 'course-reminder' : 'reminder';
+                const days = Math.min(30, Math.max(1, parseInt(document.getElementById(`${prefix}-days`).value) || 1));
+                const time = document.getElementById(`${prefix}-time`).value || '20:00';
 
                 // First reminder: today at that time, or tomorrow if it already passed
                 const [h, m] = time.split(':').map(Number);
@@ -647,7 +695,22 @@
                 start.setHours(h, m, 0, 0);
                 if (start <= new Date()) start.setDate(start.getDate() + 1);
                 const end = new Date(start.getTime() + 30 * 60000);
-                return { days, start, end };
+
+                if (scope === 'course') {
+                    const course = window.app.getCurrentCourse();
+                    course.reminder = { days, time };
+                    window.app.saveCoursesToStorage();
+                    window.app.updateReminderBell(course);
+                    return {
+                        days, start, end,
+                        title: `בוא נלמד ${course.topic}! 📚`,
+                        // The link in the calendar event opens this course
+                        url: `${window.app.appUrl()}?open=${encodeURIComponent('course:' + course.id)}`,
+                        details: `ממשיכים בקורס "${course.topic}"`
+                    };
+                }
+                localStorage.setItem('smartlearn_reminder', JSON.stringify({ days, time }));
+                return { days, start, end, title: 'רוצה ללמוד משהו? 📚', url: window.app.appUrl(), details: 'ממשיכים ללמוד ב-SmartLearn' };
             },
 
             calendarTime: (d) => {
@@ -657,21 +720,22 @@
 
             appUrl: () => location.origin + location.pathname,
 
-            addReminderGoogle: () => {
-                const { days, start, end } = window.app.readReminderForm();
+            addReminderGoogle: (scope) => {
+                const r = window.app.readReminder(scope);
                 const params = new URLSearchParams({
                     action: 'TEMPLATE',
-                    text: 'זמן ללמוד ב-SmartLearn 📚',
-                    dates: `${window.app.calendarTime(start)}/${window.app.calendarTime(end)}`,
+                    text: r.title,
+                    dates: `${window.app.calendarTime(r.start)}/${window.app.calendarTime(r.end)}`,
                     ctz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    recur: `RRULE:FREQ=DAILY;INTERVAL=${days}`,
-                    details: `ממשיכים בקורסים: ${window.app.appUrl()}`
+                    recur: `RRULE:FREQ=DAILY;INTERVAL=${r.days}`,
+                    details: `${r.details}: ${r.url}`
                 });
                 window.open(`https://calendar.google.com/calendar/render?${params}`, '_blank');
+                if (scope === 'course') window.app.closeReminderModal();
             },
 
-            downloadReminderIcs: () => {
-                const { days, start } = window.app.readReminderForm();
+            downloadReminderIcs: (scope) => {
+                const r = window.app.readReminder(scope);
                 const esc = (t) => t.replace(/[\\,;]/g, c => '\\' + c).replace(/\n/g, '\\n');
                 // iCalendar lines are limited to 75 bytes; longer ones continue on a line starting with a space
                 const encoder = new TextEncoder();
@@ -694,15 +758,15 @@
                     'BEGIN:VEVENT',
                     `UID:smartlearn-reminder-${Date.now()}@smartlearn`,
                     `DTSTAMP:${stamp}`,
-                    `DTSTART:${window.app.calendarTime(start)}`,
+                    `DTSTART:${window.app.calendarTime(r.start)}`,
                     'DURATION:PT30M',
-                    `RRULE:FREQ=DAILY;INTERVAL=${days}`,
-                    `SUMMARY:${esc('זמן ללמוד ב-SmartLearn 📚')}`,
-                    `DESCRIPTION:${esc(`ממשיכים בקורסים: ${window.app.appUrl()}`)}`,
-                    `URL:${window.app.appUrl()}`,
+                    `RRULE:FREQ=DAILY;INTERVAL=${r.days}`,
+                    `SUMMARY:${esc(r.title)}`,
+                    `DESCRIPTION:${esc(`${r.details}: ${r.url}`)}`,
+                    `URL:${r.url}`,
                     'BEGIN:VALARM',
                     'ACTION:DISPLAY',
-                    `DESCRIPTION:${esc('זמן ללמוד ב-SmartLearn')}`,
+                    `DESCRIPTION:${esc(r.title)}`,
                     'TRIGGER:PT0M',
                     'END:VALARM',
                     'END:VEVENT',
@@ -711,12 +775,42 @@
                 const blob = new Blob([lines.map(fold).join('\r\n') + '\r\n'], { type: 'text/calendar;charset=utf-8' });
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
-                a.download = 'smartlearn-reminder.ics';
+                a.download = scope === 'course' ? 'smartlearn-course-reminder.ics' : 'smartlearn-reminder.ics';
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
                 setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+                if (scope === 'course') window.app.closeReminderModal();
                 window.app.showToast('הקובץ ירד - פתח אותו כדי להוסיף את התזכורת ליומן');
+            },
+
+            // Bell in the course header: solid once a reminder was created for this course
+            updateReminderBell: (course) => {
+                const icon = document.querySelector('#course-reminder-btn i');
+                icon.classList.toggle('fa-solid', !!course.reminder);
+                icon.classList.toggle('fa-regular', !course.reminder);
+            },
+
+            openReminderModal: () => {
+                const course = window.app.getCurrentCourse();
+                const r = window.app.getReminderPrefs(course);
+                document.getElementById('course-reminder-title').textContent = `"בוא נלמד ${course.topic}!"`;
+                document.getElementById('course-reminder-days').value = r.days;
+                document.getElementById('course-reminder-time').value = r.time;
+                const m = document.getElementById('reminder-modal');
+                const c = document.getElementById('reminder-modal-content');
+                m.classList.remove('hidden');
+                void m.offsetWidth;
+                m.classList.remove('opacity-0');
+                c.classList.remove('scale-95');
+            },
+
+            closeReminderModal: () => {
+                const m = document.getElementById('reminder-modal');
+                const c = document.getElementById('reminder-modal-content');
+                m.classList.add('opacity-0');
+                c.classList.add('scale-95');
+                setTimeout(() => m.classList.add('hidden'), 300);
             },
 
             // --- UI Navigation ---
@@ -1328,6 +1422,7 @@ ${JSON.stringify(p.lessons)}
                     list.appendChild(el);
                 });
 
+                window.app.updateReminderBell(course);
                 window.app.navigate('syllabus');
                 // The browser keeps this container's old scroll position even while hidden, so reset it once visible
                 if (!keepScroll) {
