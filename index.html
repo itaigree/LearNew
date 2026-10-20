@@ -69,10 +69,6 @@
         .lesson-content blockquote { border-right: 4px solid #bae6fd; background: #f0f9ff; padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 0.5rem; }
         .lesson-content pre { direction: ltr; text-align: left; background: #0f172a; color: #e2e8f0; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin-bottom: 1rem; font-size: 0.875rem; }
         .lesson-content code { font-family: ui-monospace, monospace; unicode-bidi: isolate; direction: ltr; }
-        /* Chat button turns into "ask about the selection" while lesson text is selected */
-        #chat-fab-label { display: none; }
-        #chat-fab.has-focus { width: auto; padding: 0 1.25rem; gap: 0.5rem; }
-        #chat-fab.has-focus #chat-fab-label { display: inline; }
         .lesson-content table { display: block; overflow-x: auto; border-collapse: collapse; margin-bottom: 1rem; }
         .lesson-content th, .lesson-content td { border: 1px solid #e2e8f0; padding: 0.5rem 0.75rem; text-align: right; }
         
@@ -91,7 +87,7 @@
                 <div class="w-8 h-8 bg-brand-600 text-white rounded-lg flex items-center justify-center font-bold text-xl">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v26</span></h1>
+                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v27</span></h1>
             </div>
             
             <div id="nav-actions" class="flex items-center gap-4">
@@ -262,7 +258,6 @@
             <!-- AI Tutor Sidebar -->
             <button id="chat-fab" onclick="app.openChat()" class="md:hidden fixed bottom-5 left-5 z-20 w-14 h-14 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg flex items-center justify-center text-xl" title="שאל את המורה">
                 <i class="fa-solid fa-comments"></i>
-                <span id="chat-fab-label" class="text-sm font-medium">שאל על הסימון</span>
             </button>
 
             <div id="chat-panel" class="fixed inset-x-0 bottom-0 z-30 h-[70dvh] rounded-t-2xl shadow-2xl translate-y-full transition-transform duration-300 md:static md:z-auto md:h-auto md:w-80 lg:w-96 md:rounded-none md:shadow-none md:translate-y-0 border-r border-slate-200 bg-slate-50 flex flex-col shrink-0 overflow-hidden">
@@ -582,6 +577,9 @@
                 history.replaceState(window.app.historyEntry(), '', location.pathname);
                 window.addEventListener('popstate', window.app.onPopState);
                 document.addEventListener('selectionchange', window.app.onSelectionChange);
+                document.addEventListener('touchstart', window.app.onTouchStart, { passive: true });
+                document.addEventListener('touchend', window.app.onTouchEnd, { passive: true });
+                document.addEventListener('touchcancel', window.app.onTouchEnd, { passive: true });
                 document.getElementById('lesson-scroll-area').addEventListener('scroll', window.app.positionSelectionBar, { passive: true });
                 if (open && open !== 'syllabus') window.app.handleOpenTarget(open);
                 else if (window.app.state.pendingCourse && window.app.getApiKey()) window.app.openCreateModal();
@@ -2238,9 +2236,9 @@ ${lessonText}
                     const bar = document.getElementById('selection-bar');
                     const sel = document.getSelection();
                     const content = document.getElementById('lesson-content');
-                    if (!sel || sel.isCollapsed || !sel.rangeCount || !content.contains(sel.anchorNode) || !content.contains(sel.focusNode)) {
-                        // Selection cancelled: the chat goes back to general questions - unless the user already took
-                        // the selection to the chat (chat button / "other"), which itself clears the selection.
+                    if (!sel || sel.isCollapsed || !sel.rangeCount || !content.contains(sel.anchorNode) || !content.contains(sel.focusNode) || window.app.isTapSelection()) {
+                        // Selection cancelled: the chat goes back to general questions - unless the user picked
+                        // "other" (the typed question about the selection comes next).
                         // (Clicks on the quick actions run before this debounced check, so they still get the selection.)
                         bar.classList.add('hidden');
                         if (window.app.state.chatFocus && !window.app.state.focusLocked) window.app.clearChatFocus();
@@ -2253,6 +2251,25 @@ ${lessonText}
                     bar.classList.remove('hidden');
                     window.app.positionSelectionBar();
                 }, 200);
+            },
+
+            // A real selection on a phone is made with a long press. A selection that appears right after a short tap
+            // comes from Chrome's "Tap to Search" (it selects the tapped word) - e.g. when tapping to cancel a selection.
+            touch: { down: false, start: 0, end: 0 },
+
+            onTouchStart: () => {
+                window.app.touch.down = true;
+                window.app.touch.start = Date.now();
+            },
+
+            onTouchEnd: () => {
+                window.app.touch.down = false;
+                window.app.touch.end = Date.now();
+            },
+
+            isTapSelection: () => {
+                const t = window.app.touch;
+                return !t.down && t.end > 0 && (t.end - t.start) < 300 && (Date.now() - t.end) < 1000;
             },
 
             // The bar sits at the top, unless the selection itself is up there - then it goes just below the selection
@@ -2277,7 +2294,6 @@ ${lessonText}
                 window.app.state.chatFocus = text;
                 document.getElementById('chat-focus-text').textContent = `"${text}"`;
                 document.getElementById('chat-focus').classList.remove('hidden');
-                document.getElementById('chat-fab').classList.add('has-focus');
             },
 
             clearChatFocus: () => {
@@ -2285,18 +2301,17 @@ ${lessonText}
                 window.app.state.focusLocked = false;
                 document.getElementById('chat-focus').classList.add('hidden');
                 document.getElementById('selection-bar').classList.add('hidden');
-                document.getElementById('chat-fab').classList.remove('has-focus');
                 document.getElementById('chat-input').placeholder = 'שאל שאלה על השיעור...';
             },
 
             askAboutFocus: (kind) => {
                 const focus = window.app.state.chatFocus;
                 if (!focus) return;
+                window.app.state.focusLocked = true; // survives the selection being cleared below
                 document.getElementById('selection-bar').classList.add('hidden');
                 document.getSelection().removeAllRanges(); // also closes Chrome's search panel
                 window.app.openChat();
                 if (kind === 'other') {
-                    window.app.state.focusLocked = true; // the question about the selection comes next
                     const input = document.getElementById('chat-input');
                     input.placeholder = 'מה תרצה לשאול על הקטע המסומן?';
                     input.focus();
@@ -2313,8 +2328,8 @@ ${lessonText}
             // --- Chatbot ---
             // On phones the chat is a bottom sheet opened from a floating button; on desktop it's a fixed sidebar
             openChat: () => {
-                // Opening the chat while text is selected: keep that selection as the chat's focus
-                if (window.app.state.chatFocus) window.app.state.focusLocked = true;
+                // The chat button always opens a general chat; asking about selected text goes through the selection bar
+                if (!window.app.state.focusLocked) window.app.clearChatFocus();
                 document.getElementById('chat-panel').classList.remove('translate-y-full');
             },
 
