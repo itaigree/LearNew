@@ -91,7 +91,7 @@
                 <div class="w-8 h-8 bg-brand-600 text-white rounded-lg flex items-center justify-center font-bold text-xl">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v24</span></h1>
+                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v25</span></h1>
             </div>
             
             <div id="nav-actions" class="flex items-center gap-4">
@@ -2253,7 +2253,8 @@ ${lessonText}
             positionSelectionBar: () => {
                 const bar = document.getElementById('selection-bar');
                 const sel = document.getSelection();
-                if (bar.classList.contains('hidden') || !sel || !sel.rangeCount || sel.isCollapsed) return;
+                // offsetParent is null while the bar isn't displayed (always the case on desktop)
+                if (!bar.offsetParent || !sel || !sel.rangeCount || sel.isCollapsed) return;
                 const box = bar.offsetParent.getBoundingClientRect();
                 const rect = sel.getRangeAt(0).getBoundingClientRect();
                 const selTop = rect.top - box.top, selBottom = rect.bottom - box.top;
