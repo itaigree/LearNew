@@ -1,1 +1,1 @@
-# LearNew
+# SmartLearn
