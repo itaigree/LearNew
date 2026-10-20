@@ -91,7 +91,7 @@
                 <div class="w-8 h-8 bg-brand-600 text-white rounded-lg flex items-center justify-center font-bold text-xl">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v23</span></h1>
+                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v24</span></h1>
             </div>
             
             <div id="nav-actions" class="flex items-center gap-4">
@@ -112,7 +112,12 @@
             <div class="max-w-7xl mx-auto">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
                     <div>
-                        <h2 class="text-2xl font-bold text-slate-900">הקורסים שלי</h2>
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-2xl font-bold text-slate-900">הקורסים שלי</h2>
+                            <button id="reorder-btn" onclick="app.toggleReorder()" class="hidden text-sm font-medium text-brand-600 hover:text-brand-700 hover:bg-brand-50 px-2 py-1 rounded-lg transition-colors">
+                                <i class="fa-solid fa-sort ml-1"></i> סדר מחדש
+                            </button>
+                        </div>
                         <p class="text-slate-500 text-sm mt-1">המשיכו את הלמידה מאותו מקום שהפסקתם.</p>
                     </div>
                     <button onclick="app.openCreateModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-lg font-medium shadow-sm transition-all flex items-center gap-2">
@@ -556,6 +561,7 @@
                 currentLessonIndex: null,
                 isGeneratingContent: false,
                 pendingCourse: null,
+                reorderMode: false,
                 chatHistory: [],
                 chatFocus: null
             },
@@ -575,6 +581,7 @@
                 history.replaceState(window.app.historyEntry(), '', location.pathname);
                 window.addEventListener('popstate', window.app.onPopState);
                 document.addEventListener('selectionchange', window.app.onSelectionChange);
+                document.getElementById('lesson-scroll-area').addEventListener('scroll', window.app.positionSelectionBar, { passive: true });
                 if (open && open !== 'syllabus') window.app.handleOpenTarget(open);
                 else if (window.app.state.pendingCourse && window.app.getApiKey()) window.app.openCreateModal();
 
@@ -1021,6 +1028,7 @@
                     else history.replaceState(entry, '');
                 }
                 
+                if (viewId !== 'dashboard') window.app.state.reorderMode = false;
                 const backBtn = document.getElementById('back-btn');
                 if (viewId === 'dashboard') {
                     backBtn.classList.add('hidden');
@@ -1525,6 +1533,13 @@ ${JSON.stringify(p.lessons)}
                 Array.from(grid.children).forEach(c => { if(c.id !== 'no-courses-msg') c.remove(); });
                 window.app.renderContinueCard();
                 
+                const reorderBtn = document.getElementById('reorder-btn');
+                reorderBtn.classList.toggle('hidden', courses.length < 2);
+                const reordering = window.app.state.reorderMode && courses.length >= 2;
+                reorderBtn.innerHTML = reordering
+                    ? '<i class="fa-solid fa-check ml-1"></i> סיום'
+                    : '<i class="fa-solid fa-sort ml-1"></i> סדר מחדש';
+
                 if (courses.length === 0) {
                     noMsg.classList.remove('hidden');
                     return;
@@ -1532,18 +1547,28 @@ ${JSON.stringify(p.lessons)}
                 
                 noMsg.classList.add('hidden');
                 
-                courses.forEach(course => {
+                courses.forEach((course, i) => {
                     const pct = Math.round((course.progress / course.numLessons) * 100);
                     const card = document.createElement('div');
-                    card.className = 'bg-white rounded-xl shadow-sm border border-slate-100 p-5 hover:shadow-md transition-shadow cursor-pointer flex flex-col';
-                    card.onclick = () => window.app.openCourse(course.id);
+                    card.className = reordering
+                        ? 'bg-white rounded-xl shadow-sm border-2 border-dashed border-brand-300 p-5 flex flex-col'
+                        : 'bg-white rounded-xl shadow-sm border border-slate-100 p-5 hover:shadow-md transition-shadow cursor-pointer flex flex-col';
+                    if (!reordering) card.onclick = () => window.app.openCourse(course.id);
+                    const arrowCls = 'w-10 h-10 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 disabled:opacity-30 disabled:pointer-events-none';
+                    // In reorder mode the icon is replaced with move up / down buttons
+                    const corner = reordering ? `
+                            <div class="flex items-center gap-1 shrink-0">
+                                <button onclick="app.moveCourse(${i}, -1)" class="${arrowCls}" title="הזז למעלה" ${i === 0 ? 'disabled' : ''}><i class="fa-solid fa-arrow-up"></i></button>
+                                <button onclick="app.moveCourse(${i}, 1)" class="${arrowCls}" title="הזז למטה" ${i === courses.length - 1 ? 'disabled' : ''}><i class="fa-solid fa-arrow-down"></i></button>
+                            </div>` : `
+                            <div class="w-8 h-8 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center shrink-0">
+                                <i class="fa-solid fa-book-bookmark"></i>
+                            </div>`;
                     
                     card.innerHTML = `
                         <div class="flex items-start justify-between mb-3">
                             <h3 class="font-bold text-lg text-slate-800 line-clamp-2">${window.app.escapeHtml(course.topic)}</h3>
-                            <div class="w-8 h-8 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center shrink-0">
-                                <i class="fa-solid fa-book-bookmark"></i>
-                            </div>
+                            ${corner}
                         </div>
                         <p class="text-xs text-slate-500 mb-4 line-clamp-1"><i class="fa-solid fa-stairs ml-1"></i> יעד: ${window.app.escapeHtml(course.targetLevel)}</p>
                         
@@ -1559,6 +1584,20 @@ ${JSON.stringify(p.lessons)}
                     `;
                     grid.appendChild(card);
                 });
+            },
+
+            toggleReorder: () => {
+                window.app.state.reorderMode = !window.app.state.reorderMode;
+                window.app.renderDashboard();
+            },
+
+            moveCourse: (index, dir) => {
+                const courses = window.app.state.courses;
+                const target = index + dir;
+                if (target < 0 || target >= courses.length) return;
+                [courses[index], courses[target]] = [courses[target], courses[index]];
+                window.app.saveCoursesToStorage();
+                window.app.renderDashboard();
             },
 
             // The lesson to continue with: the last one opened if unfinished, otherwise the next unfinished one
@@ -2206,7 +2245,25 @@ ${lessonText}
                     window.app.setChatFocus(text.slice(0, 600));
                     document.getElementById('selection-bar-text').textContent = `"${text.slice(0, 120)}"`;
                     bar.classList.remove('hidden');
+                    window.app.positionSelectionBar();
                 }, 200);
+            },
+
+            // The bar sits at the top, unless the selection itself is up there - then it goes just below the selection
+            positionSelectionBar: () => {
+                const bar = document.getElementById('selection-bar');
+                const sel = document.getSelection();
+                if (bar.classList.contains('hidden') || !sel || !sel.rangeCount || sel.isCollapsed) return;
+                const box = bar.offsetParent.getBoundingClientRect();
+                const rect = sel.getRangeAt(0).getBoundingClientRect();
+                const selTop = rect.top - box.top, selBottom = rect.bottom - box.top;
+                const defaultTop = 72, gap = 8, height = bar.offsetHeight;
+                let top = defaultTop;
+                if (selTop < defaultTop + height + gap) {
+                    top = selBottom + 36; // leave room for the selection handles
+                    if (top + height > box.height - gap) top = defaultTop; // tall selection: nowhere free, keep the default
+                }
+                bar.style.top = `${Math.max(defaultTop, top)}px`;
             },
 
             setChatFocus: (text) => {
