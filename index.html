@@ -68,7 +68,11 @@
         .lesson-content ol { list-style-type: decimal; padding-right: 1.5rem; margin-bottom: 1rem; color: #334155; }
         .lesson-content blockquote { border-right: 4px solid #bae6fd; background: #f0f9ff; padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 0.5rem; }
         .lesson-content pre { direction: ltr; text-align: left; background: #0f172a; color: #e2e8f0; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin-bottom: 1rem; font-size: 0.875rem; }
-        .lesson-content code { font-family: ui-monospace, monospace; }
+        .lesson-content code { font-family: ui-monospace, monospace; unicode-bidi: isolate; direction: ltr; }
+        /* Chat button turns into "ask about the selection" while lesson text is selected */
+        #chat-fab-label { display: none; }
+        #chat-fab.has-focus { width: auto; padding: 0 1.25rem; gap: 0.5rem; }
+        #chat-fab.has-focus #chat-fab-label { display: inline; }
         .lesson-content table { display: block; overflow-x: auto; border-collapse: collapse; margin-bottom: 1rem; }
         .lesson-content th, .lesson-content td { border: 1px solid #e2e8f0; padding: 0.5rem 0.75rem; text-align: right; }
         
@@ -87,7 +91,7 @@
                 <div class="w-8 h-8 bg-brand-600 text-white rounded-lg flex items-center justify-center font-bold text-xl">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v21</span></h1>
+                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v22</span></h1>
             </div>
             
             <div id="nav-actions" class="flex items-center gap-4">
@@ -143,6 +147,9 @@
                                 <span id="syllabus-persona"><i class="fa-solid fa-user-graduate ml-1"></i> סגנון למידה</span>
                                 <span id="syllabus-progress-text"><i class="fa-solid fa-chart-line ml-1"></i> התקדמות</span>
                             </div>
+                            <button onclick="app.downloadCourseForNotebook()" class="mt-3 text-sm font-medium text-brand-600 hover:text-brand-700" title="קובץ עם כל השיעורים שנכתבו, להעלאה כמקור ב-NotebookLM">
+                                <i class="fa-solid fa-file-arrow-down ml-1"></i> הורד את הקורס ל-NotebookLM
+                            </button>
                         </div>
                         <div class="flex items-center gap-1 shrink-0">
                             <button id="course-reminder-btn" onclick="app.openReminderModal()" class="text-brand-600 hover:bg-brand-50 p-2 rounded-lg transition-colors" title="תזכורת לקורס">
@@ -207,20 +214,29 @@
                         </div>
                     </div>
 
-                    <div id="lesson-nav" class="max-w-3xl mx-auto mt-10 mb-4 pt-6 border-t border-slate-200 hidden flex flex-wrap justify-between items-center gap-3">
-                        <button onclick="app.goBack()" class="text-sm font-medium text-slate-600 hover:text-brand-600 transition-colors">
-                            <i class="fa-solid fa-list-ul ml-1"></i> חזרה לסילבוס
-                        </button>
-                        <button id="next-lesson-btn" onclick="app.completeLessonAndContinue()" class="bg-green-500 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-600 transition-colors flex items-center gap-2">
-                            סיימתי, לשיעור הבא <i class="fa-solid fa-arrow-left"></i>
-                        </button>
+                    <div id="lesson-nav" class="max-w-3xl mx-auto mt-10 mb-4 pt-6 border-t border-slate-200 hidden">
+                        <div class="flex flex-wrap justify-between items-center gap-3">
+                            <button id="complete-lesson-btn" onclick="app.toggleLessonComplete()"></button>
+                            <button id="next-lesson-btn" onclick="app.goToNextLesson()" class="bg-brand-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-brand-700 transition-colors flex items-center gap-2">
+                                לשיעור הבא <i class="fa-solid fa-arrow-left"></i>
+                            </button>
+                        </div>
+                        <div class="flex flex-wrap justify-between items-center gap-3 mt-5 text-sm">
+                            <button onclick="app.goBack()" class="font-medium text-slate-600 hover:text-brand-600 transition-colors">
+                                <i class="fa-solid fa-list-ul ml-1"></i> חזרה לסילבוס
+                            </button>
+                            <button onclick="app.downloadLessonForNotebook()" class="font-medium text-slate-600 hover:text-brand-600 transition-colors" title="קובץ להעלאה כמקור ב-NotebookLM">
+                                <i class="fa-solid fa-file-arrow-down ml-1"></i> הורד ל-NotebookLM
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- AI Tutor Sidebar -->
-            <button onclick="app.openChat()" class="md:hidden fixed bottom-5 left-5 z-20 w-14 h-14 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg flex items-center justify-center text-xl" title="שאל את המורה">
+            <button id="chat-fab" onclick="app.openChat()" class="md:hidden fixed bottom-5 left-5 z-20 w-14 h-14 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg flex items-center justify-center text-xl" title="שאל את המורה">
                 <i class="fa-solid fa-comments"></i>
+                <span id="chat-fab-label" class="text-sm font-medium">שאל על הסימון</span>
             </button>
 
             <div id="chat-panel" class="fixed inset-x-0 bottom-0 z-30 h-[70dvh] rounded-t-2xl shadow-2xl translate-y-full transition-transform duration-300 md:static md:z-auto md:h-auto md:w-80 lg:w-96 md:rounded-none md:shadow-none md:translate-y-0 border-r border-slate-200 bg-slate-50 flex flex-col shrink-0 overflow-hidden">
@@ -245,6 +261,21 @@
                         <div class="bg-white border border-slate-200 rounded-2xl rounded-tr-none p-3 text-sm text-slate-700 shadow-sm">
                             היי! אני כאן כדי לעזור לך להבין את החומר. אם משהו בשיעור הזה לא ברור, פשוט שאל אותי.
                         </div>
+                    </div>
+                </div>
+
+                <div id="chat-focus" class="hidden px-3 pt-3 bg-white border-t border-slate-200">
+                    <div class="flex items-start gap-2 bg-indigo-50 border border-indigo-100 rounded-lg p-2">
+                        <i class="fa-solid fa-highlighter text-indigo-500 text-xs mt-1"></i>
+                        <p id="chat-focus-text" class="flex-1 text-xs text-slate-700 line-clamp-2"></p>
+                        <button onclick="app.clearChatFocus()" class="text-slate-400 hover:text-slate-600 px-1" title="בטל את הסימון">
+                            <i class="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                    </div>
+                    <div class="flex gap-2 mt-2">
+                        <button onclick="app.askAboutFocus('explain')" class="flex-1 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-full py-1.5">תסביר לי</button>
+                        <button onclick="app.askAboutFocus('expand')" class="flex-1 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-full py-1.5">תרחיב על זה</button>
+                        <button onclick="app.askAboutFocus('other')" class="flex-1 text-xs font-medium border border-indigo-600 text-indigo-700 hover:bg-indigo-50 rounded-full py-1.5">אחר...</button>
                     </div>
                 </div>
 
@@ -504,7 +535,8 @@
                 currentLessonIndex: null,
                 isGeneratingContent: false,
                 pendingCourse: null,
-                chatHistory: []
+                chatHistory: [],
+                chatFocus: null
             },
             
             init: () => {
@@ -521,6 +553,7 @@
                 const open = new URLSearchParams(location.search).get('open');
                 history.replaceState(window.app.historyEntry(), '', location.pathname);
                 window.addEventListener('popstate', window.app.onPopState);
+                document.addEventListener('selectionchange', window.app.onSelectionChange);
                 if (open && open !== 'syllabus') window.app.handleOpenTarget(open);
                 else if (window.app.state.pendingCourse && window.app.getApiKey()) window.app.openCreateModal();
 
@@ -650,14 +683,7 @@
                 try { reminder = JSON.parse(localStorage.getItem('smartlearn_reminder')); } catch (e) {}
                 // The API key is deliberately left out - a backup file may end up shared or synced
                 const data = { app: 'smartlearn', version: 1, exportedAt: new Date().toISOString(), courses: window.app.state.courses, defaults, reminder };
-                const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `smartlearn-backup-${new Date().toISOString().slice(0, 10)}.json`;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+                window.app.downloadFile(`smartlearn-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data), 'application/json');
                 window.app.showToast('הגיבוי נשמר בתיקיית ההורדות');
             },
 
@@ -868,14 +894,8 @@
                     'END:VEVENT',
                     'END:VCALENDAR'
                 ];
-                const blob = new Blob([lines.map(fold).join('\r\n') + '\r\n'], { type: 'text/calendar;charset=utf-8' });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = scope === 'course' ? 'smartlearn-course-reminder.ics' : 'smartlearn-reminder.ics';
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+                window.app.downloadFile(scope === 'course' ? 'smartlearn-course-reminder.ics' : 'smartlearn-reminder.ics',
+                    lines.map(fold).join('\r\n') + '\r\n', 'text/calendar;charset=utf-8');
                 if (scope === 'course') window.app.closeReminderModal();
                 window.app.showToast('הקובץ ירד - פתח אותו כדי להוסיף את התזכורת ליומן');
             },
@@ -1391,6 +1411,7 @@
                         </div>
                     </li>
                 `).join('');
+                window.app.isolateLatin(list);
                 list.scrollTop = 0;
             },
 
@@ -1644,6 +1665,8 @@ ${JSON.stringify(p.lessons)}
                     list.appendChild(el);
                 });
 
+                window.app.isolateLatin(list);
+                window.app.isolateLatin(document.getElementById('syllabus-title'));
                 window.app.updateReminderBell(course);
                 window.app.navigate('syllabus', fromHistory);
                 // The browser keeps this container's old scroll position even while hidden, so reset it once visible
@@ -1670,6 +1693,7 @@ ${JSON.stringify(p.lessons)}
                 document.getElementById('lesson-nav').classList.add('hidden');
 
                 window.app.state.chatHistory = [];
+                window.app.clearChatFocus();
                 window.app.closeChat();
                 document.getElementById('chat-messages').innerHTML = `
                     <div class="flex items-start gap-2">
@@ -1682,6 +1706,8 @@ ${JSON.stringify(p.lessons)}
                     </div>
                 `;
 
+                window.app.isolateLatin(document.getElementById('lesson-current-title'));
+                window.app.isolateLatin(document.getElementById('chat-messages'));
                 window.app.navigate('lesson', fromHistory);
                 document.getElementById('lesson-scroll-area').scrollTop = 0; // only works once the view is visible
                 window.app.showLessonLoading();
@@ -1756,6 +1782,7 @@ ${JSON.stringify(p.lessons)}
                 if (!html) return;
                 document.getElementById('lesson-loading').classList.add('hidden');
                 document.getElementById('lesson-content').innerHTML = window.app.sanitizeHtml(html);
+                window.app.isolateLatin(document.getElementById('lesson-content'));
                 document.getElementById('lesson-streaming').classList.remove('hidden');
             },
 
@@ -1822,10 +1849,8 @@ ${JSON.stringify(p.lessons)}
                 document.getElementById('lesson-streaming').classList.add('hidden');
                 document.getElementById('lesson-content').innerHTML = window.app.sanitizeHtml(lessonData.content);
 
-                const isLast = lessonIndex + 1 >= course.syllabus.length;
-                document.getElementById('next-lesson-btn').innerHTML = isLast
-                    ? `סיימתי את הקורס <i class="fa-solid fa-trophy"></i>`
-                    : `סיימתי, לשיעור הבא <i class="fa-solid fa-arrow-left"></i>`;
+                window.app.isolateLatin(document.getElementById('lesson-content'));
+                window.app.updateLessonButtons(course, lessonIndex);
                 document.getElementById('lesson-nav').classList.remove('hidden');
 
                 window.app.renderQuizSection(course, lessonIndex);
@@ -1884,6 +1909,7 @@ ${JSON.stringify(p.lessons)}
                     `;
                     container.appendChild(qDiv);
                 });
+                window.app.isolateLatin(container);
             },
 
             answerQuiz: (qIndex, optIndex) => {
@@ -1979,18 +2005,206 @@ ${lessonText}
                 }
             },
 
-            completeLessonAndContinue: () => {
+            // --- Mixed Hebrew / English text ---
+            // In right-to-left text, English words next to periods or parentheses get visually reordered
+            // ("R ו-RStudio. R" / "(The Language Interpreter)"). Wrapping each English run in <bdi>
+            // isolates it, so punctuation around it follows the Hebrew sentence.
+            isolateLatin: (root) => {
+                const token = "[A-Za-z](?:[A-Za-z0-9+#'._-]*[A-Za-z0-9+#])?";
+                const run = new RegExp(`${token}(?:[ \\u00A0]+(?:${token}|[0-9]+(?:[.,][0-9]+)*))*`, 'g');
+                const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+                    acceptNode: (n) => (/[A-Za-z]/.test(n.nodeValue) && !n.parentElement.closest('pre, code, bdi, script, style'))
+                        ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
+                });
+                const nodes = [];
+                while (walker.nextNode()) nodes.push(walker.currentNode);
+                nodes.forEach(node => {
+                    const text = node.nodeValue;
+                    const frag = document.createDocumentFragment();
+                    let last = 0;
+                    for (const m of text.matchAll(run)) {
+                        if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+                        const bdi = document.createElement('bdi');
+                        bdi.textContent = m[0];
+                        // Keep short phrases like "(The Language Interpreter)" on one line instead of split across two
+                        if (m[0].length <= 30) bdi.style.whiteSpace = 'nowrap';
+                        frag.appendChild(bdi);
+                        last = m.index + m[0].length;
+                    }
+                    if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+                    node.parentNode.replaceChild(frag, node);
+                });
+            },
+
+            downloadFile: (filename, content, type) => {
+                const blob = new Blob([content], { type });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+            },
+
+            // --- NotebookLM: it has no public API for personal accounts, so we export Markdown files to upload as sources ---
+            htmlToMarkdown: (html) => {
+                const doc = new DOMParser().parseFromString(window.app.sanitizeHtml(html), 'text/html');
+                const inline = (node) => [...node.childNodes].map(n => {
+                    if (n.nodeType === Node.TEXT_NODE) return n.textContent.replace(/\s+/g, ' ');
+                    if (n.nodeType !== Node.ELEMENT_NODE) return '';
+                    const tag = n.tagName, inner = inline(n);
+                    if (tag === 'B' || tag === 'STRONG') return inner.trim() ? `**${inner.trim()}**` : '';
+                    if (tag === 'EM' || tag === 'I') return inner.trim() ? `*${inner.trim()}*` : '';
+                    if (tag === 'CODE') return '`' + n.textContent + '`';
+                    if (tag === 'BR') return '\n';
+                    if (tag === 'A' && n.getAttribute('href')) return `[${inner.trim()}](${n.getAttribute('href')})`;
+                    return inner;
+                }).join('');
+                const blocks = (node, out) => {
+                    for (const n of node.childNodes) {
+                        if (n.nodeType === Node.TEXT_NODE) {
+                            if (n.textContent.trim()) out.push(n.textContent.trim());
+                            continue;
+                        }
+                        if (n.nodeType !== Node.ELEMENT_NODE) continue;
+                        const tag = n.tagName;
+                        if (/^H[1-6]$/.test(tag)) out.push('#'.repeat(Math.max(2, +tag[1])) + ' ' + inline(n).trim());
+                        else if (tag === 'P') out.push(inline(n).trim());
+                        else if (tag === 'UL' || tag === 'OL') {
+                            out.push([...n.children].filter(li => li.tagName === 'LI')
+                                .map((li, i) => (tag === 'OL' ? `${i + 1}. ` : '- ') + inline(li).trim()).join('\n'));
+                        }
+                        else if (tag === 'PRE') out.push('```\n' + n.textContent.replace(/\n$/, '') + '\n```');
+                        else if (tag === 'BLOCKQUOTE') out.push(inline(n).trim().split('\n').map(l => '> ' + l).join('\n'));
+                        else if (tag === 'TABLE') {
+                            const rows = [...n.querySelectorAll('tr')].map(tr => [...tr.children].map(c => inline(c).trim().replace(/\|/g, '\\|')));
+                            if (rows.length) out.push([`| ${rows[0].join(' | ')} |`, `|${rows[0].map(() => ' --- |').join('')}`,
+                                ...rows.slice(1).map(r => `| ${r.join(' | ')} |`)].join('\n'));
+                        }
+                        else if (tag === 'HR') out.push('---');
+                        else blocks(n, out);
+                    }
+                };
+                const out = [];
+                blocks(doc.body, out);
+                return out.filter(Boolean).join('\n\n');
+            },
+
+            lessonMarkdown: (course, index) => {
+                const lesson = course.syllabus[index];
+                const parts = [`# ${course.topic} - שיעור ${index + 1}: ${lesson.title}`, window.app.htmlToMarkdown(lesson.contentData.content)];
+                const quiz = window.app.validQuiz(lesson.contentData.quiz);
+                if (quiz.length) {
+                    parts.push('## בוחן', quiz.map((q, i) => [
+                        `${i + 1}. ${q.question}`,
+                        ...q.options.map((o, j) => `   - ${o}`),
+                        `   - **תשובה נכונה:** ${q.options[q.correctIndex]}${q.explanation ? ` (${q.explanation})` : ''}`
+                    ].join('\n')).join('\n\n'));
+                }
+                return parts.join('\n\n');
+            },
+
+            safeFilename: (name) => name.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80),
+
+            downloadLessonForNotebook: () => {
                 const course = window.app.getCurrentCourse();
-                const cIndex = window.app.state.currentLessonIndex;
-                course.syllabus[cIndex].completed = true;
+                const index = window.app.state.currentLessonIndex;
+                if (!course.syllabus[index].contentData) return;
+                window.app.downloadFile(`${window.app.safeFilename(course.topic)} - שיעור ${index + 1}.md`,
+                    window.app.lessonMarkdown(course, index), 'text/markdown;charset=utf-8');
+                window.app.showToast('הקובץ ירד. ב-NotebookLM: הוספת מקור ← העלאת קובץ', 5000);
+            },
+
+            downloadCourseForNotebook: () => {
+                const course = window.app.getCurrentCourse();
+                const written = course.syllabus.map((l, i) => i).filter(i => course.syllabus[i].contentData);
+                if (written.length === 0) {
+                    window.app.showToast('עוד לא נכתבו שיעורים בקורס הזה');
+                    return;
+                }
+                const outline = course.syllabus.map((l, i) => `${i + 1}. ${l.title}${course.syllabus[i].contentData ? '' : ' (עוד לא נכתב)'}`).join('\n');
+                const md = [`# ${course.topic}`, `רמת יעד: ${course.targetLevel}`, '## סילבוס', outline,
+                    ...written.map(i => window.app.lessonMarkdown(course, i).replace(/^# /, '## '))].join('\n\n');
+                window.app.downloadFile(`${window.app.safeFilename(course.topic)} - קורס.md`, md, 'text/markdown;charset=utf-8');
+                window.app.showToast(`ירד קובץ עם ${written.length} שיעורים. ב-NotebookLM: הוספת מקור ← העלאת קובץ`, 5000);
+            },
+
+            // --- End of lesson: marking as done and moving on are separate ---
+            updateLessonButtons: (course, index) => {
+                const done = course.syllabus[index].completed;
+                const btn = document.getElementById('complete-lesson-btn');
+                btn.className = done
+                    ? 'px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white border border-green-500'
+                    : 'px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 bg-white hover:bg-green-50 text-green-700 border border-green-500';
+                btn.innerHTML = done
+                    ? '<i class="fa-solid fa-circle-check"></i> הושלם'
+                    : '<i class="fa-regular fa-circle-check"></i> סמן כהושלם';
+                btn.title = done ? 'לחץ כדי לבטל את הסימון' : '';
+                document.getElementById('next-lesson-btn').classList.toggle('hidden', index + 1 >= course.syllabus.length);
+            },
+
+            toggleLessonComplete: () => {
+                const course = window.app.getCurrentCourse();
+                const index = window.app.state.currentLessonIndex;
+                const lesson = course.syllabus[index];
+                lesson.completed = !lesson.completed;
                 window.app.updateProgress(course);
                 window.app.saveCoursesToStorage();
+                window.app.updateLessonButtons(course, index);
+                if (lesson.completed && course.progress === course.syllabus.length) window.app.showToast('כל הכבוד! סיימת את כל הקורס! 🏆', 4000);
+                else if (lesson.completed) window.app.showToast('השיעור סומן כהושלם');
+            },
 
-                if (cIndex + 1 < course.syllabus.length) {
-                    window.app.startLesson(cIndex + 1);
+            goToNextLesson: () => {
+                const course = window.app.getCurrentCourse();
+                const next = window.app.state.currentLessonIndex + 1;
+                if (next < course.syllabus.length) window.app.startLesson(next);
+            },
+
+            // --- Chat focused on text selected in the lesson ---
+            onSelectionChange: () => {
+                clearTimeout(window.app.selectionTimer);
+                window.app.selectionTimer = setTimeout(() => {
+                    if (window.app.state.view !== 'lesson') return;
+                    const sel = document.getSelection();
+                    if (!sel || sel.isCollapsed || !sel.rangeCount) return; // keep the last selection - tapping the chat button clears it
+                    const content = document.getElementById('lesson-content');
+                    if (!content.contains(sel.anchorNode) || !content.contains(sel.focusNode)) return;
+                    const text = sel.toString().replace(/\s+/g, ' ').trim();
+                    if (text.length >= 2) window.app.setChatFocus(text.slice(0, 600));
+                }, 200);
+            },
+
+            setChatFocus: (text) => {
+                window.app.state.chatFocus = text;
+                document.getElementById('chat-focus-text').textContent = `"${text}"`;
+                document.getElementById('chat-focus').classList.remove('hidden');
+                document.getElementById('chat-fab').classList.add('has-focus');
+            },
+
+            clearChatFocus: () => {
+                window.app.state.chatFocus = null;
+                document.getElementById('chat-focus').classList.add('hidden');
+                document.getElementById('chat-fab').classList.remove('has-focus');
+                document.getElementById('chat-input').placeholder = 'שאל שאלה על השיעור...';
+            },
+
+            askAboutFocus: (kind) => {
+                const focus = window.app.state.chatFocus;
+                if (!focus) return;
+                window.app.openChat();
+                if (kind === 'other') {
+                    const input = document.getElementById('chat-input');
+                    input.placeholder = 'מה תרצה לשאול על הקטע המסומן?';
+                    input.focus();
+                    return;
+                }
+                const short = focus.length > 60 ? focus.slice(0, 60) + '…' : focus;
+                if (kind === 'explain') {
+                    window.app.askTutor(`תסביר לי: "${short}"`, 'הסבר את הקטע המסומן בפשטות ובבהירות, עם דוגמה קצרה אם זה עוזר.');
                 } else {
-                    window.app.showToast('כל הכבוד! סיימת את הקורס!');
-                    window.app.openCourse(course.id);
+                    window.app.askTutor(`תרחיב על: "${short}"`, 'הרחב על הקטע המסומן מעבר למה שכתוב בשיעור: הקשר, פרטים נוספים ודוגמאות. כאן מותר לענות בהרחבה.');
                 }
             },
 
@@ -2004,14 +2218,20 @@ ${lessonText}
                 document.getElementById('chat-panel').classList.add('translate-y-full');
             },
 
-            handleChatSubmit: async (e) => {
+            handleChatSubmit: (e) => {
                 e.preventDefault();
                 const inputEl = document.getElementById('chat-input');
                 const userQuery = inputEl.value.trim();
                 if (!userQuery) return;
-
                 inputEl.value = '';
+                window.app.askTutor(userQuery);
+            },
+
+            // instruction: extra guidance for the quick actions on a selection (explain / expand)
+            askTutor: async (userQuery, instruction = '') => {
                 window.app.appendChatMessage('user', userQuery);
+                const focus = window.app.state.chatFocus;
+                window.app.clearChatFocus();
 
                 const course = window.app.getCurrentCourse();
                 const lessonIndex = window.app.state.currentLessonIndex;
@@ -2028,12 +2248,12 @@ ${lessonText}
 """
 ${lessonText}
 """
-${history ? `השיחה עד עכשיו:\n${history}\n` : ''}
+${history ? `השיחה עד עכשיו:\n${history}\n` : ''}${focus ? `הלומד סימן בשיעור את הקטע הבא, והשאלה מתייחסת אליו:\n"""\n${focus}\n"""\n` : ''}
 שאלת המשתמש: "${userQuery}"
 
 הנחיות:
-1. ענה בעברית בלבד ובקצרה.
-2. השתמש במידע מהשיעור.`;
+1. ענה בעברית בלבד. תשובה ממוקדת וקצרה, אלא אם התבקשת להרחיב.
+2. השתמש במידע מהשיעור.${instruction ? `\n3. ${instruction}` : ''}`;
 
                 const msgContainer = document.getElementById('chat-messages');
                 const typingId = 'typing-' + Date.now();
@@ -2090,6 +2310,7 @@ ${history ? `השיחה עד עכשיו:\n${history}\n` : ''}
                     `;
                 }
                 msgContainer.insertAdjacentHTML('beforeend', html);
+                window.app.isolateLatin(msgContainer.lastElementChild);
                 msgContainer.scrollTop = msgContainer.scrollHeight;
             }
         };
