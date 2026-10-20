@@ -91,7 +91,7 @@
                 <div class="w-8 h-8 bg-brand-600 text-white rounded-lg flex items-center justify-center font-bold text-xl">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v25</span></h1>
+                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v26</span></h1>
             </div>
             
             <div id="nav-actions" class="flex items-center gap-4">
@@ -563,7 +563,8 @@
                 pendingCourse: null,
                 reorderMode: false,
                 chatHistory: [],
-                chatFocus: null
+                chatFocus: null,
+                focusLocked: false
             },
             
             init: () => {
@@ -2236,10 +2237,15 @@ ${lessonText}
                     if (window.app.state.view !== 'lesson') return;
                     const bar = document.getElementById('selection-bar');
                     const sel = document.getSelection();
-                    // Selection gone: hide the bar but keep the chat's focus - tapping a button clears the selection too
-                    if (!sel || sel.isCollapsed || !sel.rangeCount) return bar.classList.add('hidden');
                     const content = document.getElementById('lesson-content');
-                    if (!content.contains(sel.anchorNode) || !content.contains(sel.focusNode)) return bar.classList.add('hidden');
+                    if (!sel || sel.isCollapsed || !sel.rangeCount || !content.contains(sel.anchorNode) || !content.contains(sel.focusNode)) {
+                        // Selection cancelled: the chat goes back to general questions - unless the user already took
+                        // the selection to the chat (chat button / "other"), which itself clears the selection.
+                        // (Clicks on the quick actions run before this debounced check, so they still get the selection.)
+                        bar.classList.add('hidden');
+                        if (window.app.state.chatFocus && !window.app.state.focusLocked) window.app.clearChatFocus();
+                        return;
+                    }
                     const text = sel.toString().replace(/\s+/g, ' ').trim();
                     if (text.length < 2) return;
                     window.app.setChatFocus(text.slice(0, 600));
@@ -2276,6 +2282,7 @@ ${lessonText}
 
             clearChatFocus: () => {
                 window.app.state.chatFocus = null;
+                window.app.state.focusLocked = false;
                 document.getElementById('chat-focus').classList.add('hidden');
                 document.getElementById('selection-bar').classList.add('hidden');
                 document.getElementById('chat-fab').classList.remove('has-focus');
@@ -2289,6 +2296,7 @@ ${lessonText}
                 document.getSelection().removeAllRanges(); // also closes Chrome's search panel
                 window.app.openChat();
                 if (kind === 'other') {
+                    window.app.state.focusLocked = true; // the question about the selection comes next
                     const input = document.getElementById('chat-input');
                     input.placeholder = 'מה תרצה לשאול על הקטע המסומן?';
                     input.focus();
@@ -2305,6 +2313,8 @@ ${lessonText}
             // --- Chatbot ---
             // On phones the chat is a bottom sheet opened from a floating button; on desktop it's a fixed sidebar
             openChat: () => {
+                // Opening the chat while text is selected: keep that selection as the chat's focus
+                if (window.app.state.chatFocus) window.app.state.focusLocked = true;
                 document.getElementById('chat-panel').classList.remove('translate-y-full');
             },
 
