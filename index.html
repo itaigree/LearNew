@@ -91,7 +91,7 @@
                 <div class="w-8 h-8 bg-brand-600 text-white rounded-lg flex items-center justify-center font-bold text-xl">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v22</span></h1>
+                <h1 class="font-bold text-xl text-slate-900 tracking-tight">Smart<span class="text-brand-600">Learn</span> <span class="text-xs text-slate-400 font-normal">v23</span></h1>
             </div>
             
             <div id="nav-actions" class="flex items-center gap-4">
@@ -174,9 +174,30 @@
             <!-- Main Content Area -->
             <div class="flex-1 min-w-0 min-h-0 flex flex-col h-full bg-white relative">
                 <!-- Lesson Header -->
-                <div class="h-16 border-b border-slate-100 flex items-center px-6 justify-between shrink-0 bg-white">
-                    <h2 id="lesson-current-title" class="font-bold text-lg text-slate-800 line-clamp-1"></h2>
-                    <div class="text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full" id="lesson-counter"></div>
+                <div class="h-16 border-b border-slate-100 flex items-center px-4 sm:px-6 gap-3 justify-between shrink-0 bg-white">
+                    <h2 id="lesson-current-title" class="font-bold text-lg text-slate-800 line-clamp-1 min-w-0"></h2>
+                    <div class="flex items-center shrink-0 bg-slate-100 rounded-full text-sm text-slate-500">
+                        <button id="prev-lesson-btn" onclick="app.goToPrevLesson()" class="w-8 h-8 rounded-full hover:bg-slate-200 hover:text-brand-600 transition-colors disabled:opacity-30 disabled:pointer-events-none" title="השיעור הקודם">
+                            <i class="fa-solid fa-chevron-right text-xs"></i>
+                        </button>
+                        <span id="lesson-counter" class="px-1 whitespace-nowrap"></span>
+                        <button id="header-next-btn" onclick="app.goToNextLesson()" class="w-8 h-8 rounded-full hover:bg-slate-200 hover:text-brand-600 transition-colors disabled:opacity-30 disabled:pointer-events-none" title="השיעור הבא">
+                            <i class="fa-solid fa-chevron-left text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Phones: actions for selected lesson text, at the top - Chrome's search panel covers the bottom of the screen -->
+                <div id="selection-bar" class="hidden md:hidden absolute top-[4.5rem] inset-x-3 z-20 bg-slate-900 text-white rounded-xl shadow-xl p-2">
+                    <div class="flex items-center gap-2 px-1 mb-2">
+                        <i class="fa-solid fa-highlighter text-indigo-300 text-xs"></i>
+                        <span id="selection-bar-text" class="flex-1 min-w-0 truncate text-xs text-slate-300"></span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="app.askAboutFocus('explain')" class="flex-1 text-xs font-medium bg-indigo-500 hover:bg-indigo-600 rounded-full py-2">תסביר לי</button>
+                        <button onclick="app.askAboutFocus('expand')" class="flex-1 text-xs font-medium bg-indigo-500 hover:bg-indigo-600 rounded-full py-2">תרחיב על זה</button>
+                        <button onclick="app.askAboutFocus('other')" class="flex-1 text-xs font-medium border border-indigo-300 hover:bg-white/10 rounded-full py-2">שאלה אחרת</button>
+                    </div>
                 </div>
                 
                 <!-- Scrollable Content -->
@@ -1687,6 +1708,8 @@ ${JSON.stringify(p.lessons)}
 
                 document.getElementById('lesson-current-title').textContent = `שיעור ${lessonIndex + 1}: ${lesson.title}`;
                 document.getElementById('lesson-counter').textContent = `שיעור ${lessonIndex + 1} מתוך ${course.numLessons}`;
+                document.getElementById('prev-lesson-btn').disabled = lessonIndex === 0;
+                document.getElementById('header-next-btn').disabled = lessonIndex + 1 >= course.syllabus.length;
                 document.getElementById('lesson-content').innerHTML = '';
                 document.getElementById('lesson-streaming').classList.add('hidden');
                 document.getElementById('quiz-section').classList.add('hidden');
@@ -2156,6 +2179,11 @@ ${lessonText}
                 else if (lesson.completed) window.app.showToast('השיעור סומן כהושלם');
             },
 
+            goToPrevLesson: () => {
+                const prev = window.app.state.currentLessonIndex - 1;
+                if (prev >= 0) window.app.startLesson(prev);
+            },
+
             goToNextLesson: () => {
                 const course = window.app.getCurrentCourse();
                 const next = window.app.state.currentLessonIndex + 1;
@@ -2167,12 +2195,17 @@ ${lessonText}
                 clearTimeout(window.app.selectionTimer);
                 window.app.selectionTimer = setTimeout(() => {
                     if (window.app.state.view !== 'lesson') return;
+                    const bar = document.getElementById('selection-bar');
                     const sel = document.getSelection();
-                    if (!sel || sel.isCollapsed || !sel.rangeCount) return; // keep the last selection - tapping the chat button clears it
+                    // Selection gone: hide the bar but keep the chat's focus - tapping a button clears the selection too
+                    if (!sel || sel.isCollapsed || !sel.rangeCount) return bar.classList.add('hidden');
                     const content = document.getElementById('lesson-content');
-                    if (!content.contains(sel.anchorNode) || !content.contains(sel.focusNode)) return;
+                    if (!content.contains(sel.anchorNode) || !content.contains(sel.focusNode)) return bar.classList.add('hidden');
                     const text = sel.toString().replace(/\s+/g, ' ').trim();
-                    if (text.length >= 2) window.app.setChatFocus(text.slice(0, 600));
+                    if (text.length < 2) return;
+                    window.app.setChatFocus(text.slice(0, 600));
+                    document.getElementById('selection-bar-text').textContent = `"${text.slice(0, 120)}"`;
+                    bar.classList.remove('hidden');
                 }, 200);
             },
 
@@ -2186,6 +2219,7 @@ ${lessonText}
             clearChatFocus: () => {
                 window.app.state.chatFocus = null;
                 document.getElementById('chat-focus').classList.add('hidden');
+                document.getElementById('selection-bar').classList.add('hidden');
                 document.getElementById('chat-fab').classList.remove('has-focus');
                 document.getElementById('chat-input').placeholder = 'שאל שאלה על השיעור...';
             },
@@ -2193,6 +2227,8 @@ ${lessonText}
             askAboutFocus: (kind) => {
                 const focus = window.app.state.chatFocus;
                 if (!focus) return;
+                document.getElementById('selection-bar').classList.add('hidden');
+                document.getSelection().removeAllRanges(); // also closes Chrome's search panel
                 window.app.openChat();
                 if (kind === 'other') {
                     const input = document.getElementById('chat-input');
