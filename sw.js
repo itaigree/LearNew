@@ -1,5 +1,5 @@
 // Keep in sync with the version shown in the header of index.html
-const CACHE_NAME = 'smartlearn-cache-v31';
+const CACHE_NAME = 'smartlearn-cache-v32';
 const urlsToCache = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', event => {
@@ -14,7 +14,8 @@ self.addEventListener('activate', event => {
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) return caches.delete(cacheName);
+          // Cache storage is shared by every app on itaigree.github.io, so only delete our own old caches
+          if (cacheName.startsWith('smartlearn-cache-') && cacheName !== CACHE_NAME) return caches.delete(cacheName);
         })
       );
     }).then(() => self.clients.claim())
